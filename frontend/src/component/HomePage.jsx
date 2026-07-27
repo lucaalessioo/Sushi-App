@@ -47,7 +47,7 @@ const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, prima
 
 const HomePage = ({ onSelection }) => {
   // Unsplash URL con una foto di alta qualità di un ristorante sushi/ambientazione scura
-  const bgImageUrl = "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=1920&auto=format&fit=crop";
+  const bgImageUrl = "https://images.unsplash.com/photo-1617196035154-1e7e6e28b0db?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
   return (
     <div 
@@ -55,7 +55,7 @@ const HomePage = ({ onSelection }) => {
       style={{ backgroundImage: `url(${bgImageUrl})` }}
     >
       {/* Overlay Scuro con effetto Sfumatura per garantire leggibilità */}
-      <div className="absolute inset-0 bg-neutral-950/75 bg-gradient-to-b from-neutral-950/90 via-neutral-950/70 to-neutral-950/90 pointer-events-none" />
+       {/* <div className="absolute inset-0 bg-neutral-950/75 bg-gradient-to-b from-neutral-950/90 via-neutral-950/70 to-neutral-950/90 pointer-events-none" />  */}
 
       {/* Contenuto Principale (con z-10 per stare sopra l'overlay) */}
       <div className="relative z-10 max-w-7xl mx-auto w-full">
@@ -85,9 +85,7 @@ const HomePage = ({ onSelection }) => {
             <h2 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-tight max-w-3xl drop-shadow-lg">
               Benvenuto. Come desideri <span className="text-amber-400">ordinare</span> oggi?
             </h2>
-            <p className="text-2xl text-neutral-200 mt-6 max-w-xl mx-auto drop-shadow">
-              Scegli il tuo percorso gastronomico per iniziare l'esperienza Sushi Zen.
-            </p>
+           
           </div>
 
           {/* Griglia Scelte */}
