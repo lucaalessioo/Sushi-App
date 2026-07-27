@@ -1,22 +1,24 @@
 import React from 'react';
-// Usiamo Lucide React per icone moderne e pulite
 import { Infinity, HandCoins, ArrowRight } from 'lucide-react';
 
 const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, primary = false }) => {
   return (
     <button 
       onClick={onSelect}
-      className={`relative group overflow-hidden rounded-3xl border ${primary ? 'border-amber-400 bg-neutral-900' : 'border-neutral-800 bg-neutral-950'} 
-                 p-8 text-left transition-all duration-300 hover:border-amber-300 hover:shadow-2xl hover:shadow-amber-950/30
-                 w-full flex flex-col justify-between`}
+      className={`relative group overflow-hidden rounded-3xl border backdrop-blur-md transition-all duration-300
+                 ${primary 
+                   ? 'border-amber-400/80 bg-neutral-950/80 hover:border-amber-300 hover:bg-neutral-900/90' 
+                   : 'border-neutral-700/60 bg-neutral-950/70 hover:border-neutral-500 hover:bg-neutral-900/85'} 
+                 p-8 text-left hover:shadow-2xl hover:shadow-amber-950/40
+                 w-full flex flex-col justify-between cursor-pointer`}
     >
-      {/* Sfondo sfumato sferico per effetto premium al passaggio del mouse */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(251,191,36,0.1),transparent_70%)] 
-                      opacity-0 group-hover:opacity-100 transition-opacity duration-500"/>
+      {/* Sfondo sfumato sferico al passaggio del mouse */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(251,191,36,0.12),transparent_70%)] 
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"/>
 
       <div>
         <div className="flex items-center gap-5 mb-8">
-          <div className={`p-4 rounded-full ${primary ? 'bg-amber-400/10' : 'bg-neutral-800'}`}>
+          <div className={`p-4 rounded-full ${primary ? 'bg-amber-400/15' : 'bg-neutral-800/80'}`}>
             <Icon className={`w-10 h-10 ${primary ? 'text-amber-400' : 'text-neutral-300'}`} strokeWidth={1.5} />
           </div>
           <div>
@@ -30,7 +32,7 @@ const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, prima
         </p>
       </div>
 
-      <div className={`mt-12 flex items-center justify-between border-t pt-6 ${primary ? 'border-amber-400/20' : 'border-neutral-800'}`}>
+      <div className={`mt-12 flex items-center justify-between border-t pt-6 ${primary ? 'border-amber-400/30' : 'border-neutral-800'}`}>
         <span className={`font-semibold tracking-wide ${primary ? 'text-amber-400' : 'text-neutral-100'}`}>
           SELEZIONA MENU
         </span>
@@ -44,62 +46,72 @@ const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, prima
 };
 
 const HomePage = ({ onSelection }) => {
+  // Unsplash URL con una foto di alta qualità di un ristorante sushi/ambientazione scura
+  const bgImageUrl = "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=1920&auto=format&fit=crop";
+
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-6 md:p-12 font-sans">
-      {/* Intestazione */}
-      <header className="flex justify-between items-center mb-16 md:mb-24">
-        <div className="flex gap-4 items-center">
-            {/* Logo o Icona Sushi stilizzata */}
-            <div className="p-3 bg-neutral-900 rounded-2xl border border-neutral-800">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M12 8V12L15 14" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M8 8V12L5 14" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <rect x="7" y="16" width="10" height="4" rx="2" fill="#FBBF24" fill-opacity="0.1" stroke="#FBBF24" stroke-width="1.5"/>
-                </svg>
+    <div 
+      className="relative min-h-screen text-neutral-100 p-6 md:p-12 font-sans bg-cover bg-center bg-no-repeat bg-fixed flex flex-col justify-between"
+      style={{ backgroundImage: `url(${bgImageUrl})` }}
+    >
+      {/* Overlay Scuro con effetto Sfumatura per garantire leggibilità */}
+      <div className="absolute inset-0 bg-neutral-950/75 bg-gradient-to-b from-neutral-950/90 via-neutral-950/70 to-neutral-950/90 pointer-events-none" />
+
+      {/* Contenuto Principale (con z-10 per stare sopra l'overlay) */}
+      <div className="relative z-10 max-w-7xl mx-auto w-full">
+        {/* Intestazione */}
+        <header className="flex justify-between items-center mb-12 md:mb-16">
+          <div className="flex gap-4 items-center">
+            <div className="p-3 bg-neutral-900/80 backdrop-blur-md rounded-2xl border border-neutral-700/60">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 8V12L15 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 8V12L5 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="7" y="16" width="10" height="4" rx="2" fill="#FBBF24" fillOpacity="0.1" stroke="#FBBF24" strokeWidth="1.5"/>
+              </svg>
             </div>
-          <h1 className="text-4xl font-extrabold tracking-tighter">
-            Sushi <span className="text-amber-400">Zen</span>
-          </h1>
-        </div>
-        <div className="text-sm font-mono p-3 px-5 bg-neutral-900 rounded-full border border-neutral-800">
-           Tavolo <span className="text-amber-400 font-bold">40</span>
-        </div>
-      </header>
+            <h1 className="text-4xl font-extrabold tracking-tighter drop-shadow-md">
+              Sushi <span className="text-amber-400">Zen</span>
+            </h1>
+          </div>
+          <div className="text-sm font-mono p-3 px-5 bg-neutral-900/80 backdrop-blur-md rounded-full border border-neutral-700/60 shadow-lg">
+            Tavolo <span className="text-amber-400 font-bold">40</span>
+          </div>
+        </header>
 
-      {/* Sezione Centrale */}
-      <main className="max-w-7xl mx-auto flex flex-col items-center">
-        <div className="text-center mb-16 md:mb-20">
-          <h2 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-tight max-w-3xl">
-            Benvenuto. Come desideri <span className="text-amber-400">ordinare</span> oggi?
-          </h2>
-          <p className="text-2xl text-neutral-300 mt-6 max-w-xl mx-auto">
-            Scegli il tuo percorso gastronomico per iniziare l'esperienza Sushi Zen.
-          </p>
-        </div>
+        {/* Sezione Centrale */}
+        <main className="flex flex-col items-center">
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-tight max-w-3xl drop-shadow-lg">
+              Benvenuto. Come desideri <span className="text-amber-400">ordinare</span> oggi?
+            </h2>
+            <p className="text-2xl text-neutral-200 mt-6 max-w-xl mx-auto drop-shadow">
+              Scegli il tuo percorso gastronomico per iniziare l'esperienza Sushi Zen.
+            </p>
+          </div>
 
-        {/* Griglia Scelte */}
-        <div className="grid md:grid-cols-2 gap-10 w-full">
-          <MenuOptionCard 
-            title="Menu All You Can Eat"
-            description="Ordina tutti i piatti che desideri, pagando un prezzo fisso. Esplora il nostro intero menu senza limiti. (Bevande escluse)"
-            icon={Infinity}
-            price="A Pranzo €21.90 | A Cena €31.90"
-            onSelect={() => onSelection('all-you-can-eat')}
-            primary={true} // Stile evidenziato (Oro)
-          />
-          <MenuOptionCard 
-            title="Menu Alla Carta"
-            description="Ordina i tuoi piatti preferiti singolarmente, pagando solo quello che consumi. Perfetto per un pranzo rapido o una scelta specifica."
-            icon={HandCoins}
-            // price="Prezzi al piatto" // Prezzo opzionale
-            onSelect={() => onSelection('alla-carta')}
-          />
-        </div>
-      </main>
+          {/* Griglia Scelte */}
+          <div className="grid md:grid-cols-2 gap-10 w-full">
+            <MenuOptionCard 
+              title="Menu All You Can Eat"
+              description="Ordina tutti i piatti che desideri, pagando un prezzo fisso. Esplora il nostro intero menu senza limiti. (Bevande escluse)"
+              icon={Infinity}
+              price="A Pranzo €21.90 | A Cena €31.90"
+              onSelect={() => onSelection('all-you-can-eat')}
+              primary={true}
+            />
+            <MenuOptionCard 
+              title="Menu Alla Carta"
+              description="Ordina i tuoi piatti preferiti singolarmente, pagando solo quello che consumi. Perfetto per un pranzo rapido o una scelta specifica."
+              icon={HandCoins}
+              onSelect={() => onSelection('alla-carta')}
+            />
+          </div>
+        </main>
+      </div>
 
-      {/* Footer / Nota rapida */}
-      <footer className="mt-24 md:mt-32 text-center text-neutral-500 text-sm">
+      {/* Footer */}
+      <footer className="relative z-10 mt-16 text-center text-neutral-400 text-sm">
         <p>Utilizzando questa app, accetti le Condizioni di Servizio e l'Informativa sulla Privacy di Sushi Zen SRL.</p>
         <p className="mt-1">© 2026 Sushi Zen. Tutti i diritti riservati.</p>
       </footer>
