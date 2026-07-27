@@ -82,8 +82,8 @@ const HomePage = ({ onSelection }) => {
         {/* Sezione Centrale */}
         <main className="flex flex-col items-center">
           <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-tight max-w-3xl drop-shadow-lg">
-              Benvenuto. Come desideri <span className="text-amber-400">ordinare</span> oggi?
+            <h2 className="text-5xl md:text-5xl font-extrabold tracking-tighter leading-tight max-w-3xl drop-shadow-lg">
+              Benvenuto a Sushi Zen. Come desideri <span className="text-amber-400">ordinare</span>?
             </h2>
            
           </div>
