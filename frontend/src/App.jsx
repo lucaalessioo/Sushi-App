@@ -1,120 +1,40 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+// Importa HomePage dalla cartella components
+import HomePage from './component/HomePage'
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Stato per memorizzare il tipo di menu scelto ('', 'all-you-can-eat', o 'alla-carta')
+  const [selectedMenuType, setSelectedMenuType] = useState('');
+
+  // Funzione chiamata quando l'utente fa una scelta nella HomePage
+  const handleMenuSelection = (type) => {
+    setSelectedMenuType(type);
+    console.log("Menu selezionato:", type);
+  };
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+      {/* Mostra la HomePage se non è stato ancora selezionato un menu */}
+      {selectedMenuType === '' && (
+        <HomePage onSelection={handleMenuSelection} />
+      )}
+
+      {/* Mostra il menu quando la scelta è stata effettuata */}
+      {selectedMenuType !== '' && (
+        <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-20 font-sans">
+          <h1 className="text-5xl font-extrabold tracking-tighter">Hai selezionato il Menu:</h1>
+          <p className="text-4xl text-amber-400 font-bold mt-6 uppercase tracking-widest">{selectedMenuType}</p>
+          <p className="text-neutral-300 mt-10 text-xl max-w-xl text-center">
+            Qui caricheresti la tua schermata dell'iPad esistente, passando informazioni diverse se è All You Can Eat.
           </p>
+          <button 
+            onClick={() => setSelectedMenuType('')} 
+            className="mt-16 p-4 px-10 bg-neutral-800 rounded-full border border-neutral-700 hover:bg-neutral-700 transition-colors cursor-pointer"
+          >
+            Cambia scelta menu
+          </button>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      )}
     </>
   )
 }
