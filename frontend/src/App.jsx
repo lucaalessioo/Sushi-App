@@ -1,122 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import HomePage from './component/HomePage';
+import MenuAll from './component/MenuAll';
+import Recensione from './component/Recensione';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [selectedMenuType, setSelectedMenuType] = useState('');
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      {/* HomePage: Nessun tasto recensioni */}
+      {selectedMenuType === '' && (
+        <HomePage 
+          onSelection={(type) => setSelectedMenuType(type)} 
+        />
+      )}
 
-      <div className="ticks"></div>
+      {/* Menu All You Can Eat: Tasto recensioni attivo */}
+      {selectedMenuType === 'all-you-can-eat' && (
+        <MenuAll 
+          onBack={() => setSelectedMenuType('')} 
+          onOpenReviews={() => setIsReviewOpen(true)}
+        />
+      )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Menu Alla Carta: Tasto recensioni attivo */}
+      {selectedMenuType === 'alla-carta' && (
+        <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-20 font-sans relative">
+          <button 
+            onClick={() => setIsReviewOpen(true)}
+            className="absolute top-6 right-6 px-4 py-2 bg-neutral-900 rounded-full border border-amber-400/40 text-amber-400 text-sm font-semibold hover:bg-amber-400/10 transition-colors"
+          >
+            ★ Valuta Menu
+          </button>
+          
+          <h1 className="text-4xl font-bold">Menu Alla Carta</h1>
+          <button 
+            onClick={() => setSelectedMenuType('')} 
+            className="mt-8 p-3 px-8 bg-neutral-800 rounded-full border border-neutral-700 hover:bg-neutral-700 transition-colors cursor-pointer"
+          >
+            Torna Indietro
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      {/* Overlay Modale Recensioni */}
+      <Recensione 
+        isOpen={isReviewOpen} 
+        onClose={() => setIsReviewOpen(false)} 
+      />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
