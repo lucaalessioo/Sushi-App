@@ -10,7 +10,7 @@ import { Plus, Minus } from 'lucide-react';
  * - onIncrement: () => void  -> chiamato per aggiungere 1 unità
  * - onDecrement: () => void  -> chiamato per togliere 1 unità
  */
-const Card = ({ dish, qty = 0, onIncrement, onDecrement }) =>
+const DishCard = ({ dish, qty = 0, onIncrement, onDecrement }) =>
 {
     return (
         <div
