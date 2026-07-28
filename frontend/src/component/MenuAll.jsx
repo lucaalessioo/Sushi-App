@@ -3,7 +3,10 @@ import
 {
   Search,
   ShoppingBag,
+  ShoppingCart,
   ArrowLeft,
+  ChevronLeft,
+  Star,
   CheckCircle2
 } from 'lucide-react';
 
@@ -18,6 +21,7 @@ const MenuAll = ({ onBack, onOpenReviews }) =>
   const [activeCategory, setActiveCategory] = useState('nuovi');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState({});
+  const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
 
   // Gestione aggiunta/rimozione piatti
   const updateQuantity = (dishId, delta) =>
@@ -130,6 +134,48 @@ const MenuAll = ({ onBack, onOpenReviews }) =>
           </div >
         </main >
       </div >
+
+      {/* Freccia + riquadro: il riquadro si apre orizzontalmente a sinistra della freccia */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+
+        {/* Piccolo riquadro con carrello e recensioni, si apre a sinistra */}
+        <div
+          className={`bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl shadow-neutral-950 p-3 flex flex-col items-center gap-3 transition-all duration-300 origin-right
+            ${isCartPanelOpen ? 'opacity-100 scale-100 translate-x-0' : 'opacity-0 scale-90 translate-x-4 pointer-events-none w-0 p-0 overflow-hidden'}`}
+        >
+          {/* Icona Carrello */}
+          <div className="relative p-2.5 bg-amber-400 text-neutral-950 rounded-xl">
+            <ShoppingCart className="w-5 h-5" />
+            {totalItemsCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-neutral-950 text-amber-400 border border-amber-400 text-[10px] font-mono font-bold w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center">
+                {totalItemsCount}
+              </span>
+            )}
+          </div>
+
+          {/* Icona Stella Recensioni */}
+          {onOpenReviews && (
+            <button
+              onClick={onOpenReviews}
+              className="p-2.5 bg-neutral-800 border border-neutral-700 text-amber-400 rounded-xl hover:bg-neutral-700 transition-colors cursor-pointer"
+              aria-label="Lascia una recensione"
+            >
+              <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+            </button>
+          )}
+        </div>
+
+        {/* Freccia per aprire/chiudere il riquadro */}
+        <button
+          onClick={() => setIsCartPanelOpen((prev) => !prev)}
+          className="flex items-center justify-center w-12 h-12 shrink-0 bg-neutral-900 border border-neutral-800 rounded-full text-amber-400 hover:bg-neutral-800 transition-colors cursor-pointer shadow-lg shadow-neutral-950"
+          aria-label={isCartPanelOpen ? 'Chiudi pannello' : 'Apri pannello'}
+        >
+          <ChevronLeft
+            className={`w-5 h-5 transition-transform duration-300 ${isCartPanelOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
       {/* Floating Bar Ordini */}
       {
