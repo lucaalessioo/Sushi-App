@@ -11,7 +11,7 @@ import {
 // Import dei dati esterni
 import { CATEGORIES, DISHES } from '../data/mockMenu';
 
-const MenuAll = ({ onBack }) => {
+const MenuAll = ({ onBack, onOpenReviews }) => {
   const [activeCategory, setActiveCategory] = useState('nuovi');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState({});
@@ -43,42 +43,55 @@ const MenuAll = ({ onBack }) => {
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
       
       {/* TopBar  Freccia ritorna alla home page*/}
-      <header className="sticky top-0 z-30 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {onBack && (
-            <button 
-              onClick={onBack}
-              className="p-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          {/* Blocco tipo di menu, numero tavolo, menu pranzo o cena. */}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
-                ALL YOU CAN EAT
-              </span>
-              <span className="text-xs text-neutral-400 font-mono">Tavolo 40</span>
-            </div>
+<header className="sticky top-0 z-30 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+  <div className="flex items-center gap-4">
+    {onBack && (
+      <button 
+        onClick={onBack}
+        className="p-2.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+    )}
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
+          ALL YOU CAN EAT
+        </span>
+        <span className="text-xs text-neutral-400 font-mono">Tavolo 40</span>
+      </div>
 
-            <h1 className="text-xl font-bold tracking-tight mt-0.5">Menu Pranzo</h1>
-          </div>
-        </div>
-        
+      <h1 className="text-xl font-bold tracking-tight mt-0.5">Menu Pranzo</h1>
+    </div>
+  </div>
 
-        {/* Barra di Ricerca */}
-        <div className="relative w-72">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-          <input 
-            type="text" 
-            placeholder="Cerca piatto o codice..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-full pl-10 pr-4 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-          />
-        </div>
-      </header>
+  {/* Area controlli di destra: Pulsante Recensioni + Barra di Ricerca */}
+  <div className="flex items-center gap-3">
+    {onOpenReviews && (
+      <button 
+        onClick={onOpenReviews}
+        className="flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 border border-amber-400/40 text-amber-400 hover:bg-amber-400/10 transition-colors text-xs font-semibold cursor-pointer shadow-lg shadow-amber-950/20"
+        title="Lascia una recensione"
+      >
+        <svg className="w-4 h-4 fill-amber-400 text-amber-400" viewBox="0 0 24 24">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+        </svg>
+        <span className="hidden sm:inline">Valuta</span>
+      </button>
+    )}
+
+    <div className="relative w-60 md:w-72">
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+      <input 
+        type="text" 
+        placeholder="Cerca piatto o codice..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full bg-neutral-900 border border-neutral-800 rounded-full pl-10 pr-4 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+      />
+    </div>
+  </div>
+</header>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -150,12 +163,16 @@ const MenuAll = ({ onBack }) => {
                     <div className="flex items-center gap-3">
                       {qty > 0 ? (
                         <div className="flex items-center gap-3 bg-neutral-950 border border-amber-400/40 rounded-full p-1">
+
+                          {/* Rimozione di un prodotto nel carrello */}
                           <button 
                             onClick={() => updateQuantity(dish.id, -1)}
                             className="p-1.5 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white transition-colors cursor-pointer"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Aggiunta di un prodotto nel carrello */}
                           <span className="font-mono font-bold text-amber-400 text-sm px-1">{qty}</span>
                           <button 
                             onClick={() => updateQuantity(dish.id, 1)}
@@ -163,6 +180,7 @@ const MenuAll = ({ onBack }) => {
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
+
                         </div>
                       ) : (
                         <button 
