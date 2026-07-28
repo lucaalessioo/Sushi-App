@@ -11,8 +11,10 @@ import
 import { CATEGORIES, DISHES } from '../data/mockMenu';
 import DishCard from './DishCard';
 
-const MenuAll = ({ onBack }) =>
+
+const MenuAll = ({ onBack, onOpenReviews }) =>
 {
+
   const [activeCategory, setActiveCategory] = useState('nuovi');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState({});
@@ -114,47 +116,51 @@ const MenuAll = ({ onBack }) =>
         {/* Griglia Piatti */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 pb-32">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            {filteredDishes.map((dish) => (
-              <DishCard
-                key={dish.id}
-                dish={dish}
-                qty={cart[dish.id] || 0}
-                onIncrement={() => updateQuantity(dish.id, 1)}
-                onDecrement={() => updateQuantity(dish.id, -1)}
-              />
-            ))}
-          </div>
-        </main>
-      </div>
+            {
+              filteredDishes.map((dish) => (
+                <DishCard
+                  key={dish.id}
+                  dish={dish}
+                  qty={cart[dish.id] || 0}
+                  onIncrement={() => updateQuantity(dish.id, 1)}
+                  onDecrement={() => updateQuantity(dish.id, -1)}
+                />
+              ))
+            }
+          </div >
+        </main >
+      </div >
 
       {/* Floating Bar Ordini */}
-      {totalItemsCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-xl">
-          <div className="bg-neutral-900/90 backdrop-blur-xl border border-amber-400/50 p-4 rounded-3xl shadow-2xl shadow-neutral-950 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 pl-2">
-              <div className="relative p-3 bg-amber-400 text-neutral-950 rounded-2xl">
-                <ShoppingBag className="w-6 h-6" />
-                <span className="absolute -top-1 -right-1 bg-neutral-950 text-amber-400 border border-amber-400 text-xs font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                  {totalItemsCount}
-                </span>
+      {
+        totalItemsCount > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-xl">
+            <div className="bg-neutral-900/90 backdrop-blur-xl border border-amber-400/50 p-4 rounded-3xl shadow-2xl shadow-neutral-950 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 pl-2">
+                <div className="relative p-3 bg-amber-400 text-neutral-950 rounded-2xl">
+                  <ShoppingBag className="w-6 h-6" />
+                  <span className="absolute -top-1 -right-1 bg-neutral-950 text-amber-400 border border-amber-400 text-xs font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {totalItemsCount}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-neutral-100">Invia In Cucina</p>
+                  <p className="text-xs text-neutral-400">{totalItemsCount} piatti selezionati</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-neutral-100">Invia In Cucina</p>
-                <p className="text-xs text-neutral-400">{totalItemsCount} piatti selezionati</p>
-              </div>
+
+              <button
+                onClick={() => alert(`Ordine inviato con ${totalItemsCount} piatti!`)}
+                className="bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold px-6 py-3 rounded-2xl text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Conferma Ordine
+              </button>
             </div>
-
-            <button
-              onClick={() => alert(`Ordine inviato con ${totalItemsCount} piatti!`)}
-              className="bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold px-6 py-3 rounded-2xl text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Conferma Ordine
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
-    </div>
+    </div >
   );
 };
 
