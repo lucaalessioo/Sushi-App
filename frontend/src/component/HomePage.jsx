@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { Infinity, HandCoins, ArrowRight, Users, Sun, Moon, CheckCircle2, X } from 'lucide-react';
 
-const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, primary = false }) =>
-{
+const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, primary = false }) => {
   return (
-    <button
+    <button 
       onClick={onSelect}
       className={`relative group overflow-hidden rounded-3xl border backdrop-blur-md transition-all duration-300
-                 ${primary
-          ? 'border-amber-400/80 bg-neutral-950/80 hover:border-amber-300 hover:bg-neutral-900/90'
-          : 'border-neutral-700/60 bg-neutral-950/70 hover:border-neutral-500 hover:bg-neutral-900/85'} 
+                 ${primary 
+                   ? 'border-amber-400/80 bg-neutral-950/80 hover:border-amber-300 hover:bg-neutral-900/90' 
+                   : 'border-neutral-700/60 bg-neutral-950/70 hover:border-neutral-500 hover:bg-neutral-900/85'} 
                  p-8 text-left hover:shadow-2xl hover:shadow-amber-950/40
                  w-full flex flex-col justify-between cursor-pointer`}
     >
@@ -46,24 +45,22 @@ const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, prima
   );
 };
 
-const HomePage = ({ onSelection }) =>
-{
+const HomePage = ({ onSelection }) => {
   const bgImageUrl = "https://images.unsplash.com/photo-1617196035154-1e7e6e28b0db?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
   // Prezzi standard
   const PRICE_PRANZO = 21.90;
-  const PRICE_CENA = 31.90;
+  const PRICE_CENA = 28.90;
 
   // Stato della modale di configurazione All You Can Eat
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [peopleCount, setPeopleCount] = useState(2);
+  const [peopleCount, setPeopleCount] = useState(0);
   const [mealType, setMealType] = useState('pranzo');
 
   const currentPricePerPerson = mealType === 'pranzo' ? PRICE_PRANZO : PRICE_CENA;
   const tableTotal = (currentPricePerPerson * peopleCount).toFixed(2);
 
-  const handleConfirmAllYouCanEat = () =>
-  {
+  const handleConfirmAllYouCanEat = () => {
     onSelection('all-you-can-eat', {
       peopleCount,
       mealType,
@@ -73,11 +70,10 @@ const HomePage = ({ onSelection }) =>
   };
 
   return (
-    <div
+    <div 
       className="relative min-h-screen text-neutral-100 p-6 md:p-12 font-sans bg-cover bg-center bg-no-repeat bg-fixed flex flex-col justify-between"
       style={{ backgroundImage: `url(${bgImageUrl})` }}
     >
-      {/* OVERLAY SCURO RIMOSSO PER MOSTRARE LO SFONDO LUMINOSO */}
 
       {/* Contenuto Principale */}
       <div className="relative z-10 max-w-7xl mx-auto w-full">
@@ -86,10 +82,10 @@ const HomePage = ({ onSelection }) =>
           <div className="flex gap-4 items-center">
             <div className="p-3 bg-neutral-900/80 backdrop-blur-md rounded-2xl border border-neutral-700/60 shadow-lg">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" />
-                <path d="M12 8V12L15 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M8 8V12L5 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <rect x="7" y="16" width="10" height="4" rx="2" fill="#FBBF24" fillOpacity="0.1" stroke="#FBBF24" strokeWidth="1.5" />
+                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 8V12L15 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 8V12L5 14" stroke="#E5E7EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="7" y="16" width="10" height="4" rx="2" fill="#FBBF24" fillOpacity="0.1" stroke="#FBBF24" strokeWidth="1.5"/>
               </svg>
             </div>
             <h1 className="text-4xl font-extrabold tracking-tighter drop-shadow-xl text-white">
@@ -111,7 +107,7 @@ const HomePage = ({ onSelection }) =>
 
           {/* Griglia Scelte */}
           <div className="grid md:grid-cols-2 gap-10 w-full">
-            <MenuOptionCard
+            <MenuOptionCard 
               title="Menu All You Can Eat"
               description="Ordina tutti i piatti che desideri, pagando un prezzo fisso per persona. Esplora il nostro intero menu senza limiti. (Bevande escluse)"
               icon={Infinity}
@@ -119,7 +115,7 @@ const HomePage = ({ onSelection }) =>
               onSelect={() => setIsModalOpen(true)}
               primary={true}
             />
-            <MenuOptionCard
+            <MenuOptionCard 
               title="Menu Alla Carta"
               description="Ordina i tuoi piatti preferiti singolarmente, pagando solo quello che consumi. Perfetto per un pranzo rapido o una scelta specifica."
               icon={HandCoins}
@@ -133,9 +129,9 @@ const HomePage = ({ onSelection }) =>
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative text-neutral-100">
-
+            
             {/* Tasto Chiudi */}
-            <button
+            <button 
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 p-2 rounded-full bg-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors"
             >
@@ -185,10 +181,11 @@ const HomePage = ({ onSelection }) =>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setMealType('pranzo')}
-                  className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${mealType === 'pranzo'
+                  className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                    mealType === 'pranzo'
                       ? 'border-amber-400 bg-amber-400/10 text-amber-400 font-bold'
                       : 'border-neutral-800 bg-neutral-950/40 text-neutral-400 hover:bg-neutral-800/50'
-                    }`}
+                  }`}
                 >
                   <Sun className="w-6 h-6" />
                   <span className="text-sm">Pranzo</span>
@@ -197,10 +194,11 @@ const HomePage = ({ onSelection }) =>
 
                 <button
                   onClick={() => setMealType('cena')}
-                  className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${mealType === 'cena'
+                  className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                    mealType === 'cena'
                       ? 'border-amber-400 bg-amber-400/10 text-amber-400 font-bold'
                       : 'border-neutral-800 bg-neutral-950/40 text-neutral-400 hover:bg-neutral-800/50'
-                    }`}
+                  }`}
                 >
                   <Moon className="w-6 h-6" />
                   <span className="text-sm">Cena</span>
