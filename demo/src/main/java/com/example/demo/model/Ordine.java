@@ -22,7 +22,7 @@ public class Ordine {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tavolo_id", nullable = false)
-    private Utente tavolo;
+    private Tavolo tavolo; // <--- Cambiato da Utente a Tavolo
 
     @Column(nullable = false, precision = 8, scale = 2)
     @Builder.Default

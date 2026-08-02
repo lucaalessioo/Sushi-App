@@ -25,8 +25,10 @@ public class Utente implements UserDetails {
     @Column(nullable = false, length = 100, unique = true)
     private String nome;
 
-    @Column(name = "numero_tavolo", unique = true)
-    private Integer numeroTavolo;
+  // Se un Utente (es. tablet) è associato direttamente a un Tavolo:
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tavolo_id")
+    private Tavolo tavolo;
 
     @Column(nullable = false)
     private String password;

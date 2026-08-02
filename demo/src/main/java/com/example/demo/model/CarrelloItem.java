@@ -17,7 +17,7 @@ public class CarrelloItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tavolo_id", nullable = false)
-    private Utente tavolo;
+    private Tavolo tavolo; // <--- Cambiato da Utente a Tavolo
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "piatto_id", nullable = false)

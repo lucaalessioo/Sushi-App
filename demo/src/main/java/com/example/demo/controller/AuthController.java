@@ -33,7 +33,7 @@ public class AuthController {
                 .token(jwtToken)
                 .username(utente.getNome())
                 .ruolo(utente.getRuolo().name())
-                .numeroTavolo(utente.getNumeroTavolo())
+                .tavoloId(utente.getTavolo() != null ? utente.getTavolo().getId() : null)
                 .build();
 
         return ResponseEntity.ok(response);
