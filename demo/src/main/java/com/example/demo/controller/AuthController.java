@@ -23,8 +23,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-        );
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
         Utente utente = (Utente) authentication.getPrincipal();
         String jwtToken = jwtService.generateToken(utente);
@@ -33,7 +32,8 @@ public class AuthController {
                 .token(jwtToken)
                 .username(utente.getNome())
                 .ruolo(utente.getRuolo().name())
-                .tavoloId(utente.getTavolo() != null ? utente.getTavolo().getId() : null)
+                .tavoloId(utente.getRuolo() == Utente.Ruolo.ROLE_TABLET ? utente.getId() : null)
+                .numeroTavolo(utente.getNumeroTavolo()) // nuovo campo in AuthResponse
                 .build();
 
         return ResponseEntity.ok(response);

@@ -1,8 +1,6 @@
 package com.example.demo.service;
 
-import com.example.demo.dto.PiattoDTO;
 import com.example.demo.dto.PiattoRequestDTO;
-import com.example.demo.mapper.PiattoMapper;
 import com.example.demo.model.Piatto;
 import com.example.demo.repository.PiattoRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,72 +11,93 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class PiattoService {
 
     private final PiattoRepository piattoRepository;
 
-    @Transactional(readOnly = true)
-    public List<PiattoDTO> getAllPiatti(String categoria, Boolean isAllYouCanEat, Boolean soloDisponibili) {
-        List<Piatto> piatti;
+    @Transactional
+    public Piatto creaPiatto(PiattoRequestDTO dto) {
 
-        if (soloDisponibili != null && soloDisponibili) {
-            if (categoria != null) {
-                piatti = piattoRepository.findByCategoriaAndDisponibileTrue(categoria);
-            } else if (isAllYouCanEat != null) {
-                piatti = piattoRepository.findByIsAllYouCanEatAndDisponibileTrue(isAllYouCanEat);
-            } else {
-                piatti = piattoRepository.findByDisponibileTrue();
-            }
-        } else {
-            piatti = piattoRepository.findAll();
+        if (dto.getCodicePiatto() != null &&
+                !dto.getCodicePiatto().isBlank() &&
+                piattoRepository.findByCodicePiatto(dto.getCodicePiatto()).isPresent()) {
+
+            throw new IllegalArgumentException(
+                    "Esiste già un piatto con codice: " + dto.getCodicePiatto());
         }
 
-        return piatti.stream()
-                .map(PiattoMapper::toDTO)
-                .toList();
+        Piatto piatto = Piatto.builder()
+                .codicePiatto(dto.getCodicePiatto())
+                .nome(dto.getNome())
+                .descrizione(dto.getDescrizione())
+                .prezzo(dto.getPrezzo())
+                .immagineUrl(dto.getImmagineUrl())
+                .disponibile(dto.getDisponibile() != null
+                        ? dto.getDisponibile()
+                        : true)
+                .isAllYouCanEat(dto.getIsAllYouCanEat() != null
+                        ? dto.getIsAllYouCanEat()
+                        : true)
+                .categoria(dto.getCategoria())
+                .build();
+
+        return piattoRepository.save(piatto);
     }
 
-    @Transactional(readOnly = true)
-    public PiattoDTO getPiattoById(Long id) {
+    public List<Piatto> getTutti() {
+        return piattoRepository.findAll();
+    }
+
+    public List<Piatto> getDisponibili() {
+        return piattoRepository.findByDisponibileTrue();
+    }
+
+    public List<Piatto> getAllYouCanEat() {
+        return piattoRepository
+                .findByIsAllYouCanEatTrueAndDisponibileTrue();
+    }
+
+    public List<Piatto> getAllaCarta() {
+        return piattoRepository
+                .findByIsAllYouCanEatFalseAndDisponibileTrue();
+    }
+
+    @Transactional
+    public Piatto aggiornaPiatto(Long id, PiattoRequestDTO dto) {
+
         Piatto piatto = piattoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + id));
-        return PiattoMapper.toDTO(piatto);
+                .orElseThrow(() -> new RuntimeException("Piatto non trovato: " + id));
+
+        piatto.setCodicePiatto(dto.getCodicePiatto());
+        piatto.setNome(dto.getNome());
+        piatto.setDescrizione(dto.getDescrizione());
+        piatto.setPrezzo(dto.getPrezzo());
+        piatto.setImmagineUrl(dto.getImmagineUrl());
+        piatto.setDisponibile(dto.getDisponibile());
+        piatto.setIsAllYouCanEat(dto.getIsAllYouCanEat());
+        piatto.setCategoria(dto.getCategoria());
+
+        return piattoRepository.save(piatto);
     }
 
-    @Transactional(readOnly = true)
-    public PiattoDTO getPiattoByCodice(String codicePiatto) {
-        Piatto piatto = piattoRepository.findByCodicePiatto(codicePiatto)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato con codice: " + codicePiatto));
-        return PiattoMapper.toDTO(piatto);
-    }
-
-    public PiattoDTO creaPiatto(PiattoRequestDTO dto) {
-        Piatto piatto = PiattoMapper.toEntity(dto);
-        Piatto salvato = piattoRepository.save(piatto);
-        return PiattoMapper.toDTO(salvato);
-    }
-
-    public PiattoDTO aggiornaPiatto(Long id, PiattoRequestDTO dto) {
-        Piatto piatto = piattoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + id));
-        PiattoMapper.updateEntity(piatto, dto);
-        Piatto aggiornato = piattoRepository.save(piatto);
-        return PiattoMapper.toDTO(aggiornato);
-    }
-
-    public PiattoDTO cambiaDisponibilita(Long id, Boolean disponibile) {
-        Piatto piatto = piattoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + id));
-        piatto.setDisponibile(disponibile);
-        Piatto aggiornato = piattoRepository.save(piatto);
-        return PiattoMapper.toDTO(aggiornato);
-    }
-
+    @Transactional
     public void eliminaPiatto(Long id) {
+
         if (!piattoRepository.existsById(id)) {
-            throw new RuntimeException("Piatto non trovato con id: " + id);
+            throw new RuntimeException("Piatto non trovato: " + id);
         }
+
         piattoRepository.deleteById(id);
+    }
+
+    @Transactional
+    public Piatto cambiaDisponibilita(Long id, Boolean disponibile) {
+
+        Piatto piatto = piattoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Piatto non trovato: " + id));
+
+        piatto.setDisponibile(disponibile);
+
+        return piattoRepository.save(piatto);
     }
 }

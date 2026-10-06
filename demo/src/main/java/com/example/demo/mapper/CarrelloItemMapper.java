@@ -4,7 +4,7 @@ import com.example.demo.dto.CarrelloItemDTO;
 import com.example.demo.dto.CarrelloItemRequestDTO;
 import com.example.demo.model.CarrelloItem;
 import com.example.demo.model.Piatto;
-import com.example.demo.model.Tavolo;
+import com.example.demo.model.Utente;
 
 import java.math.BigDecimal;
 
@@ -36,7 +36,7 @@ public class CarrelloItemMapper {
      * @param tavolo entità Tavolo già risolta dal service tramite dto.getTavoloId()
      * @param piatto entità Piatto già risolta dal service tramite dto.getPiattoId()
      */
-    public static CarrelloItem toEntity(CarrelloItemRequestDTO dto, Tavolo tavolo, Piatto piatto) {
+    public static CarrelloItem toEntity(CarrelloItemRequestDTO dto, Utente tavolo, Piatto piatto) {
         if (dto == null) {
             return null;
         }

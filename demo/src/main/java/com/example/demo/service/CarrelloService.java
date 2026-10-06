@@ -5,10 +5,10 @@ import com.example.demo.dto.CarrelloItemRequestDTO;
 import com.example.demo.mapper.CarrelloItemMapper;
 import com.example.demo.model.CarrelloItem;
 import com.example.demo.model.Piatto;
-import com.example.demo.model.Tavolo;
+import com.example.demo.model.Utente;
 import com.example.demo.repository.CarrelloItemRepository;
 import com.example.demo.repository.PiattoRepository;
-import com.example.demo.repository.TavoloRepository;
+import com.example.demo.repository.UtenteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +22,7 @@ import java.util.Optional;
 public class CarrelloService {
 
     private final CarrelloItemRepository carrelloItemRepository;
-    private final TavoloRepository tavoloRepository;
+    private final UtenteRepository utenteRepository;
     private final PiattoRepository piattoRepository;
 
     @Transactional(readOnly = true)
@@ -33,13 +33,18 @@ public class CarrelloService {
     }
 
     public CarrelloItemDTO aggiungiItem(CarrelloItemRequestDTO dto) {
-        Tavolo tavolo = tavoloRepository.findById(dto.getTavoloId())
+        Utente tavolo = utenteRepository.findById(dto.getTavoloId())
                 .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + dto.getTavoloId()));
+
+        if (tavolo.getRuolo() != Utente.Ruolo.ROLE_TABLET || tavolo.getNumeroTavolo() == null) {
+            throw new RuntimeException("L'utente " + dto.getTavoloId() + " non è un tavolo");
+        }
 
         Piatto piatto = piattoRepository.findById(dto.getPiattoId())
                 .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + dto.getPiattoId()));
 
-        Optional<CarrelloItem> esistente = carrelloItemRepository.findByTavoloIdAndPiattoId(dto.getTavoloId(), dto.getPiattoId());
+        Optional<CarrelloItem> esistente = carrelloItemRepository.findByTavoloIdAndPiattoId(dto.getTavoloId(),
+                dto.getPiattoId());
 
         CarrelloItem item;
         if (esistente.isPresent()) {

@@ -14,4 +14,5 @@ public class AuthResponse {
     private String username;
     private String ruolo;
     private Long tavoloId;
+    private Integer numeroTavolo;
 }

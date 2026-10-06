@@ -2,19 +2,18 @@ package com.example.demo.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "ordini")
+@Table(name = "conti")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Ordine {
+public class Conto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,12 +25,6 @@ public class Ordine {
     @EqualsAndHashCode.Exclude
     private Utente tavolo;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "conto_id", nullable = false)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Conto conto;
-
     @Column(nullable = false, precision = 8, scale = 2)
     @Builder.Default
     private BigDecimal totale = BigDecimal.ZERO;
@@ -39,26 +32,32 @@ public class Ordine {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private StatoOrdine stato = StatoOrdine.INVIATO;
+    private StatoConto stato = StatoConto.APERTO;
 
-    @Column(name = "data_ora", updatable = false)
-    private LocalDateTime dataOra;
+    @Column(name = "data_apertura", updatable = false)
+    private LocalDateTime dataApertura;
 
-    @OneToMany(mappedBy = "ordine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "data_chiusura")
+    private LocalDateTime dataChiusura;
+
+    @OneToMany(mappedBy = "conto", cascade = CascadeType.ALL)
     @Builder.Default
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<DettaglioOrdine> dettagli = new ArrayList<>();
+    private List<Ordine> ordini = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
-        this.dataOra = LocalDateTime.now();
+        this.dataApertura = LocalDateTime.now();
     }
 
-    public enum StatoOrdine {
-        INVIATO,
-        IN_PREPARAZIONE,
-        SERVITO,
-        PAGATO
+    public void aggiungiOrdine(Ordine ordine) {
+        ordine.setConto(this);
+        this.ordini.add(ordine);
+        this.totale = this.totale.add(ordine.getTotale());
+    }
+
+    public enum StatoConto {
+        APERTO, PAGATO, IN_PAGAMENTO
     }
 }

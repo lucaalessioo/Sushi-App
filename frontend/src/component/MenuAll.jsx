@@ -10,8 +10,9 @@ import
   CheckCircle2
 } from 'lucide-react';
 
-// Import dei dati esterni
-import { CATEGORIES, DISHES } from '../data/mockMenu';
+// Le categorie restano locali; i piatti arrivano dal backend
+import { CATEGORIES } from '../data/mockMenu';
+import usePiatti from '../hooks/usePiatti';
 
 // Import dei componenti
 import Card from './Card';
@@ -22,9 +23,15 @@ import Carrello from './Carrello';
  * - orderType: 'all-you-can-eat' | 'alla-carta' -> proveniente dalla scelta in HomePage
  * - orderConfig: { peopleCount, mealType, pricePerPerson, tableTotal } -> presente solo
  *   se orderType === 'all-you-can-eat' (viene generato da HomePage.handleConfirmAllYouCanEat)
+ *
+ * I piatti vengono letti dal database in base a orderType:
+ * - 'all-you-can-eat' -> GET /api/piatti/all-you-can-eat
+ * - 'alla-carta'      -> GET /api/piatti/alla-carta
  */
 const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null }) =>
 {
+  const { dishes, loading, error, reload } = usePiatti(orderType);
+
   const [activeCategory, setActiveCategory] = useState('nuovi');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState({});
@@ -53,11 +60,12 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
   const totalItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
   // Filtraggio piatti per categoria e ricerca
-  const filteredDishes = DISHES.filter((dish) =>
+  const filteredDishes = dishes.filter((dish) =>
   {
     const matchesCategory = activeCategory === 'nuovi' ? true : dish.category === activeCategory;
-    const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dish.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = dish.name.toLowerCase().includes(query) ||
+      dish.id.toLowerCase().includes(query);
     return matchesCategory && matchesSearch;
   });
 
@@ -71,7 +79,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
     const itemsSent = Object.entries(cart)
       .map(([dishId, qty]) =>
       {
-        const dish = DISHES.find((d) => d.id === dishId);
+        const dish = dishes.find((d) => d.id === dishId);
         return dish ? { id: dish.id, name: dish.name, image: dish.image, price: dish.price, qty } : null;
       })
       .filter(Boolean);
@@ -186,18 +194,39 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
           <div className="max-w-7xl mx-auto space-y-8">
 
-            {/* Griglia Piatti */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDishes.map((dish) => (
-                <Card
-                  key={dish.id}
-                  dish={dish}
-                  qty={cart[dish.id] || 0}
-                  onIncrement={() => updateQuantity(dish.id, 1)}
-                  onDecrement={() => updateQuantity(dish.id, -1)}
-                />
-              ))}
-            </div>
+            {/* Griglia Piatti: caricamento / errore / vuoto / elenco */}
+            {loading ? (
+              <p className="text-center text-sm text-neutral-400 py-16">
+                Caricamento del menu in corso...
+              </p>
+            ) : error ? (
+              <div className="text-center py-16 space-y-4">
+                <p className="text-sm text-red-400">{error}</p>
+                <button
+                  onClick={reload}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-neutral-100 border border-neutral-700 text-sm font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer"
+                >
+                  Riprova
+                </button>
+              </div>
+            ) : filteredDishes.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDishes.map((dish) => (
+                  <Card
+                    key={dish.dbId ?? dish.id}
+                    dish={dish}
+                    qty={cart[dish.id] || 0}
+                    onIncrement={() => updateQuantity(dish.id, 1)}
+                    onDecrement={() => updateQuantity(dish.id, -1)}
+                    orderType={orderType}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-neutral-500 py-16">
+                Nessun piatto trovato. Prova con un altro nome o un'altra categoria.
+              </p>
+            )}
 
             {/* BARRA DI CONFERMA: Centrata rispetto alla sola griglia max-w-7xl */}
             {totalItemsCount > 0 && (
@@ -262,7 +291,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
           >
             <ShoppingCart className="w-5 h-5" />
             {totalItemsCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-neutral-950 text-amber-400 border border-amber-400 text-[10px] font-mono font-bold w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 bg-neutral-950 text-amber-400 border border-amber-400 text-[10px] font-mono font-bold min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center">
                 {totalItemsCount}
               </span>
             )}
@@ -295,7 +324,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         isOpen={isCartModalOpen}
         onClose={() => setIsCartModalOpen(false)}
         cart={cart}
-        dishes={DISHES}
+        dishes={dishes}
         onIncrement={(id) => updateQuantity(id, 1)}
         onDecrement={(id) => updateQuantity(id, -1)}
         onConfirmOrder={handlePaymentRequest}

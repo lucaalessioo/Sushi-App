@@ -3,6 +3,7 @@ import HomePage from './component/HomePage';
 import MenuAll from './component/MenuAll';
 import Recensione from './component/Recensione';
 import AdminApp from './component/admin/AdminApp';
+import MenuAlLaCarta from './component/MenuCarta';
 
 function App()
 {
@@ -55,11 +56,10 @@ function App()
 
       {/* Menu Alla Carta: Tasto recensioni attivo */}
       {selectedMenuType === 'alla-carta' && (
-        <MenuAll
+        //const MenuAlLaCarta = ({ onBack, onOpenReviews, tableNumber = 40 }
+        <MenuAlLaCarta
           onBack={handleBack}
           onOpenReviews={() => setIsReviewOpen(true)}
-          orderType="alla-carta"
-          orderConfig={null}
         />
       )}
 

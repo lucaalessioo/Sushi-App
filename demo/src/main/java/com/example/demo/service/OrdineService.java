@@ -22,72 +22,91 @@ import java.util.List;
 public class OrdineService {
 
     private final OrdineRepository ordineRepository;
-    private final TavoloRepository tavoloRepository;
+    private final UtenteRepository utenteRepository;
+    private final ContoRepository contoRepository;
     private final PiattoRepository piattoRepository;
     private final CarrelloItemRepository carrelloItemRepository;
 
     public OrdineDTO creaOrdine(OrdineRequestDTO dto) {
-        Tavolo tavolo = tavoloRepository.findById(dto.getTavoloId())
-                .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + dto.getTavoloId()));
+        Utente tavolo = trovaTavolo(dto.getTavoloId());
+        Conto conto = getOrCreateContoAperto(tavolo);
+        Ordine ordine = nuovoOrdine(tavolo);
 
-        Ordine ordine = Ordine.builder()
-                .tavolo(tavolo)
-                .stato(Ordine.StatoOrdine.IN_INVIATO)
-                .totale(BigDecimal.ZERO)
-                .dettagli(new ArrayList<>())
-                .build();
-
-        BigDecimal totaleCalcolato = BigDecimal.ZERO;
-
-        for (DettaglioOrdineRequestDTO reqDettaglio : dto.getDettagli()) {
-            Piatto piatto = piattoRepository.findById(reqDettaglio.getPiattoId())
-                    .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + reqDettaglio.getPiattoId()));
-
-            DettaglioOrdine dettaglio = DettaglioOrdineMapper.toEntity(ordine, piatto, reqDettaglio.getQuantita());
-            ordine.getDettagli().add(dettaglio);
-
-            BigDecimal subtotale = dettaglio.getPrezzoUnitario().multiply(BigDecimal.valueOf(dettaglio.getQuantita()));
-            totaleCalcolato = totaleCalcolato.add(subtotale);
+        BigDecimal totale = BigDecimal.ZERO;
+        for (DettaglioOrdineRequestDTO req : dto.getDettagli()) {
+            Piatto piatto = piattoRepository.findById(req.getPiattoId())
+                    .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + req.getPiattoId()));
+            totale = totale.add(aggiungiDettaglio(ordine, piatto, req.getQuantita()));
         }
-
-        ordine.setTotale(totaleCalcolato);
-        return OrdineMapper.toDTO(ordineRepository.save(ordine));
+        return OrdineMapper.toDTO(salvaSuConto(conto, ordine, totale));
     }
 
     public OrdineDTO creaOrdineDaCarrello(Long tavoloId) {
-        Tavolo tavolo = tavoloRepository.findById(tavoloId)
-                .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + tavoloId));
+        Utente tavolo = trovaTavolo(tavoloId);
 
-        List<CarrelloItem> carrelloItems = carrelloItemRepository.findByTavoloId(tavoloId);
-        if (carrelloItems.isEmpty()) {
+        List<CarrelloItem> items = carrelloItemRepository.findByTavoloId(tavoloId);
+        if (items.isEmpty()) {
             throw new RuntimeException("Impossibile creare l'ordine: il carrello è vuoto.");
         }
 
-        Ordine ordine = Ordine.builder()
-                .tavolo(tavolo)
-                .stato(Ordine.StatoOrdine.IN_INVIATO)
-                .totale(BigDecimal.ZERO)
-                .dettagli(new ArrayList<>())
-                .build();
+        Conto conto = getOrCreateContoAperto(tavolo);
+        Ordine ordine = nuovoOrdine(tavolo);
 
-        BigDecimal totaleCalcolato = BigDecimal.ZERO;
-
-        for (CarrelloItem item : carrelloItems) {
-            DettaglioOrdine dettaglio = DettaglioOrdineMapper.toEntity(ordine, item.getPiatto(), item.getQuantita());
-            ordine.getDettagli().add(dettaglio);
-
-            BigDecimal subtotale = dettaglio.getPrezzoUnitario().multiply(BigDecimal.valueOf(dettaglio.getQuantita()));
-            totaleCalcolato = totaleCalcolato.add(subtotale);
+        BigDecimal totale = BigDecimal.ZERO;
+        for (CarrelloItem item : items) {
+            totale = totale.add(aggiungiDettaglio(ordine, item.getPiatto(), item.getQuantita()));
         }
-
-        ordine.setTotale(totaleCalcolato);
-        Ordine salvato = ordineRepository.save(ordine);
+        Ordine salvato = salvaSuConto(conto, ordine, totale);
 
         carrelloItemRepository.deleteByTavoloId(tavoloId);
-
         return OrdineMapper.toDTO(salvato);
     }
 
+    // ---------- metodi di supporto ----------
+
+    private Utente trovaTavolo(Long id) {
+        Utente u = utenteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + id));
+        if (u.getRuolo() != Utente.Ruolo.ROLE_TABLET || u.getNumeroTavolo() == null) {
+            throw new RuntimeException("L'utente " + id + " non è un tavolo");
+        }
+        return u;
+    }
+
+    private Conto getOrCreateContoAperto(Utente tavolo) {
+        Conto conto = tavolo.getContoAttivo();
+        if (conto == null) {
+            conto = contoRepository.save(Conto.builder().tavolo(tavolo).build());
+            tavolo.setContoAttivo(conto);
+            utenteRepository.save(tavolo);
+        } else if (conto.getStato() != Conto.StatoConto.APERTO) {
+            throw new RuntimeException("Il conto è in fase di pagamento: non si possono inviare altri ordini.");
+        }
+        return conto;
+    }
+
+    private Ordine nuovoOrdine(Utente tavolo) {
+        return Ordine.builder()
+                .tavolo(tavolo)
+                .stato(Ordine.StatoOrdine.INVIATO)
+                .totale(BigDecimal.ZERO)
+                .dettagli(new ArrayList<>())
+                .build();
+    }
+
+    private BigDecimal aggiungiDettaglio(Ordine ordine, Piatto piatto, Integer quantita) {
+        DettaglioOrdine d = DettaglioOrdineMapper.toEntity(ordine, piatto, quantita);
+        ordine.getDettagli().add(d);
+        return d.getPrezzoUnitario().multiply(BigDecimal.valueOf(d.getQuantita()));
+    }
+
+    private Ordine salvaSuConto(Conto conto, Ordine ordine, BigDecimal totale) {
+        ordine.setTotale(totale); // prima il totale...
+        conto.aggiungiOrdine(ordine); // ...poi il conto lo somma e imposta ordine.conto
+        return ordineRepository.save(ordine);
+    }
+
+    // --------------------------------------
     @Transactional(readOnly = true)
     public OrdineDTO getOrdineById(Long id) {
         Ordine ordine = ordineRepository.findById(id)

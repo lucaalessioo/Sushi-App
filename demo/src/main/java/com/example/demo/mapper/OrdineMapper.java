@@ -17,13 +17,15 @@ public class OrdineMapper {
         }
         List<com.example.demo.dto.DettaglioOrdineDTO> dettagli = ordine.getDettagli() != null
                 ? ordine.getDettagli().stream()
-                    .map(DettaglioOrdineMapper::toDTO)
-                    .toList()
+                        .map(DettaglioOrdineMapper::toDTO)
+                        .toList()
                 : Collections.emptyList();
 
         return OrdineDTO.builder()
                 .id(ordine.getId())
-                .tavolo(TavoloMapper.toDTO(ordine.getTavolo()))
+                .tavoloId(ordine.getTavolo() != null ? ordine.getTavolo().getId() : null)
+                .numeroTavolo(ordine.getTavolo() != null ? ordine.getTavolo().getNumeroTavolo() : null)
+                .contoId(ordine.getConto() != null ? ordine.getConto().getId() : null)
                 .totale(ordine.getTotale())
                 .stato(ordine.getStato())
                 .dataOra(ordine.getDataOra())

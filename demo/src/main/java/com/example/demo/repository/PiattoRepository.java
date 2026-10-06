@@ -16,9 +16,14 @@ public interface PiattoRepository extends JpaRepository<Piatto, Long> {
     // Recupera solo i piatti disponibili per la categoria selezionata
     List<Piatto> findByCategoriaAndDisponibileTrue(String categoria);
 
-    // Filtra i piatti in base al fatto che siano inclusi o meno nella formula All You Can Eat
+    // Filtra i piatti in base al fatto che siano inclusi o meno nella formula All
+    // You Can Eat
     List<Piatto> findByIsAllYouCanEatAndDisponibileTrue(Boolean isAllYouCanEat);
 
     // Recupera tutti i piatti disponibili
     List<Piatto> findByDisponibileTrue();
+
+    List<Piatto> findByIsAllYouCanEatTrueAndDisponibileTrue();
+
+    List<Piatto> findByIsAllYouCanEatFalseAndDisponibileTrue();
 }

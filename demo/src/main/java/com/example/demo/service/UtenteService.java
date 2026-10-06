@@ -3,9 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.UtenteDTO;
 import com.example.demo.dto.UtenteRequestDTO;
 import com.example.demo.mapper.UtenteMapper;
-import com.example.demo.model.Tavolo;
 import com.example.demo.model.Utente;
-import com.example.demo.repository.TavoloRepository;
 import com.example.demo.repository.UtenteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,7 +18,6 @@ import java.util.List;
 public class UtenteService {
 
     private final UtenteRepository utenteRepository;
-    private final TavoloRepository tavoloRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
@@ -38,13 +35,9 @@ public class UtenteService {
     }
 
     public UtenteDTO creaUtente(UtenteRequestDTO dto) {
-        Tavolo tavolo = null;
-        if (dto.getTavoloId() != null) {
-            tavolo = tavoloRepository.findById(dto.getTavoloId())
-                    .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + dto.getTavoloId()));
-        }
+        validaNumeroTavolo(dto, null);
 
-        Utente utente = UtenteMapper.toEntity(dto, tavolo);
+        Utente utente = UtenteMapper.toEntity(dto);
         utente.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         return UtenteMapper.toDTO(utenteRepository.save(utente));
@@ -54,13 +47,9 @@ public class UtenteService {
         Utente utente = utenteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Utente non trovato con id: " + id));
 
-        Tavolo tavolo = null;
-        if (dto.getTavoloId() != null) {
-            tavolo = tavoloRepository.findById(dto.getTavoloId())
-                    .orElseThrow(() -> new RuntimeException("Tavolo non trovato con id: " + dto.getTavoloId()));
-        }
+        validaNumeroTavolo(dto, id);
 
-        UtenteMapper.updateEntity(utente, dto, tavolo);
+        UtenteMapper.updateEntity(utente, dto);
 
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
             utente.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -74,5 +63,26 @@ public class UtenteService {
             throw new RuntimeException("Utente non trovato con id: " + id);
         }
         utenteRepository.deleteById(id);
+    }
+
+    // ---------- supporto ----------
+
+    /**
+     * Un tablet deve avere un numero di tavolo, e il numero deve essere unico.
+     * 
+     * @param idEsistente id dell'utente che si sta aggiornando (null in creazione)
+     */
+    private void validaNumeroTavolo(UtenteRequestDTO dto, Long idEsistente) {
+        if (dto.getRuolo() == Utente.Ruolo.ROLE_TABLET && dto.getNumeroTavolo() == null) {
+            throw new RuntimeException("Un tablet deve avere un numero di tavolo");
+        }
+        if (dto.getNumeroTavolo() != null) {
+            boolean occupato = (idEsistente == null)
+                    ? utenteRepository.existsByNumeroTavolo(dto.getNumeroTavolo())
+                    : utenteRepository.existsByNumeroTavoloAndIdNot(dto.getNumeroTavolo(), idEsistente);
+            if (occupato) {
+                throw new RuntimeException("Il tavolo " + dto.getNumeroTavolo() + " esiste già");
+            }
+        }
     }
 }

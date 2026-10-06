@@ -13,7 +13,8 @@ public class UtenteDTO {
 
     private Long id;
     private String nome;
-    private TavoloDTO tavolo; // null se l'utente non è associato a un tavolo (es. admin)
+    private Integer numeroTavolo;
+    private Long contoAttivoId;
     private Utente.Ruolo ruolo;
     private LocalDateTime dataCreazione;
 }

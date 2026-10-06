@@ -18,8 +18,9 @@ public class UtenteRequestDTO {
     @Size(min = 6, message = "La password deve avere almeno 6 caratteri")
     private String password;
 
-    // Opzionale: id del tavolo a cui associare l'utente (es. un tablet)
-    private Long tavoloId;
+    // Obbligatorio per i tablet (ROLE_TABLET), null per l'ADMIN
+    @Positive(message = "Il numero del tavolo deve essere positivo")
+    private Integer numeroTavolo;
 
     @Builder.Default
     private Utente.Ruolo ruolo = Utente.Ruolo.ROLE_TABLET;

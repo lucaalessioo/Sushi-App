@@ -101,8 +101,8 @@ export default function DettaglioOrdineTavolo()
                 key={n}
                 onClick={() => setTavoloSel(n)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors cursor-pointer text-left ${tavoloSel === n
-                    ? "bg-amber-400 text-neutral-950 border-amber-400"
-                    : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700"
+                  ? "bg-amber-400 text-neutral-950 border-amber-400"
+                  : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700"
                   }`}
               >
                 Tavolo {n}

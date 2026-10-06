@@ -1,7 +1,6 @@
 package com.example.demo.config;
 
 import com.example.demo.service.CustomUserDetailsService;
-import com.example.demo.config.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,43 +31,54 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
 
-@Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                // Endpoint di login / autenticazione pubblico
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                
-                // Consultazione piatti (visibile ai tablet e opzionalmente pubblica)
-                .requestMatchers(HttpMethod.GET, "/api/v1/piatti/**").permitAll()
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        // Permette le richieste OPTIONS preflight dei browser
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Gestione piatti (aggiunta, modifica, cancellazione) riservata all'ADMIN
-                .requestMatchers(HttpMethod.POST, "/api/v1/piatti/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/v1/piatti/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/piatti/**").hasAuthority("ROLE_ADMIN")
+                        // Endpoints pubblici per autenticazione (login / register)
+                        .requestMatchers("/api/v1/auth/**").permitAll()
 
-                // Rotte accessibili sia da TABLET che da ADMIN (es. invio ordini, gestione carrello)
-                .requestMatchers("/api/v1/ordini/**", "/api/v1/carrello/**").hasAnyAuthority("ROLE_TABLET", "ROLE_ADMIN")
+                        // Elenco completo (anche non disponibili): solo ADMIN.
+                        // Va messo PRIMA della regola pubblica, altrimenti viene coperto da quella.
+                        .requestMatchers(HttpMethod.GET, "/api/piatti/admin").hasAuthority("ROLE_ADMIN")
 
-                // Qualsiasi altra richiesta necessita di autenticazione
-                .anyRequest().authenticated()
-            )
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // Passiamo direttamente il provider iniettato da Spring
-            .authenticationProvider(authenticationProvider)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                        // Consultazione piatti visibile a tutti
+                        .requestMatchers(HttpMethod.GET, "/api/piatti/**").permitAll()
+
+                        // Gestione piatti riservata all'ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
+
+                        // Rotte ordini e carrello per TABLET e ADMIN
+                        .requestMatchers("/api/v1/ordini/**", "/api/v1/carrello/**")
+                        .hasAnyAuthority("ROLE_TABLET", "ROLE_ADMIN")
+
+                        // Qualsiasi altra richiesta necessita di autenticazione
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Richiama direttamente il metodo @Bean della classe senza passarlo come
+                // parametro
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
-        // Passiamo userDetailsService direttamente nel costruttore
+    public AuthenticationProvider authenticationProvider() {
+        // Passa userDetailsService direttamente nel costruttore
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        // Impostiamo il passwordEncoder
-        authProvider.setPasswordEncoder(passwordEncoder);
+
+        // Imposta il passwordEncoder con il setter
+        authProvider.setPasswordEncoder(passwordEncoder());
+
         return authProvider;
     }
 
@@ -85,9 +95,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000")); // Origini React
+        // Se fai test da mobile o tablet reale, aggiungi anche "*" oppure l'IP
+        // specifico
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

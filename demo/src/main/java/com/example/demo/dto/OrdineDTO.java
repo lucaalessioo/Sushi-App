@@ -14,7 +14,9 @@ import java.util.List;
 public class OrdineDTO {
 
     private Long id;
-    private TavoloDTO tavolo;
+    private Long tavoloId;
+    private Integer numeroTavolo;
+    private Long contoId;
     private BigDecimal totale;
     private Ordine.StatoOrdine stato;
     private LocalDateTime dataOra;

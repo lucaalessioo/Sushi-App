@@ -25,10 +25,8 @@ public class Utente implements UserDetails {
     @Column(nullable = false, length = 100, unique = true)
     private String nome;
 
-  // Se un Utente (es. tablet) è associato direttamente a un Tavolo:
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tavolo_id")
-    private Tavolo tavolo;
+    @Column(name = "numero_tavolo", unique = true)
+    private Integer numeroTavolo; // null solo per l'ADMIN
 
     @Column(nullable = false)
     private String password;
@@ -82,4 +80,10 @@ public class Utente implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conto_attivo_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Conto contoAttivo;
 }

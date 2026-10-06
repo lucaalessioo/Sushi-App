@@ -5,13 +5,17 @@ import { Plus, Minus } from 'lucide-react';
  * Card di un singolo piatto del menu.
  *
  * Props:
- * - dish: { id, name, description, image, isNew }
+ * - dish: { id, name, description, price, image, isNew }
  * - qty: quantità attualmente nel carrello per questo piatto
  * - onIncrement: () => void  -> chiamato per aggiungere 1 unità
  * - onDecrement: () => void  -> chiamato per togliere 1 unità
+ * - orderType: 'all-you-can-eat' | 'alla-carta' -> con 'alla-carta' mostra il
+ *   prezzo reale del piatto, altrimenti "Prezzo Extra: €0.00"
  */
-const DishCard = ({ dish, qty = 0, onIncrement, onDecrement }) =>
+const DishCard = ({ dish, qty = 0, onIncrement, onDecrement, orderType = 'all-you-can-eat' }) =>
 {
+    const isAlLaCarta = orderType === 'alla-carta';
+
     return (
         <div
             className={`relative group bg-neutral-900/80 border rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300
@@ -46,7 +50,13 @@ const DishCard = ({ dish, qty = 0, onIncrement, onDecrement }) =>
             </div>
 
             <div className="p-5 pt-0 flex items-center justify-between border-t border-neutral-800/60 mt-4">
-                <span className="text-xs text-neutral-500 font-medium">Prezzo Extra: €0.00</span>
+                {isAlLaCarta ? (
+                    <span className="text-lg text-amber-400 font-mono font-bold">
+                        €{Number(dish.price).toFixed(2)}
+                    </span>
+                ) : (
+                    <span className="text-xs text-neutral-500 font-medium">Prezzo Extra: €0.00</span>
+                )}
 
                 <div className="flex items-center gap-3">
                     {qty > 0 ? (
