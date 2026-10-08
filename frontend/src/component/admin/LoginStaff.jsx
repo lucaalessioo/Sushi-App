@@ -1,10 +1,5 @@
 import { useState } from "react";
-import { Lock, User, KeyRound, LogIn, Loader2 } from "lucide-react";
-import { salvaSessione } from "./auth";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-const LOGIN_URL = `${API_BASE}/api/v1/auth/login`;
+import { Lock, User, KeyRound, LogIn } from "lucide-react";
 
 export default function LoginStaff({ onLogin })
 {
@@ -106,12 +101,9 @@ export default function LoginStaff({ onLogin })
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
+            className="w-full bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            {loading
-              ? <><Loader2 size={16} className="animate-spin" /> Accesso...</>
-              : <><LogIn size={16} /> Accedi</>}
+            <LogIn size={16} /> Accedi
           </button>
         </form>
 
