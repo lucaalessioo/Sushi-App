@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Lock, User, KeyRound, LogIn } from "lucide-react";
+import { Lock, User, KeyRound, LogIn, Loader2 } from "lucide-react";
+import { salvaSessione } from "./auth";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+
+const LOGIN_URL = `${API_BASE}/api/v1/auth/login`;
 
 export default function LoginStaff({ onLogin })
 {
@@ -7,44 +12,50 @@ export default function LoginStaff({ onLogin })
   const [password, setPassword] = useState("");
   const [errore, setErrore] = useState("");
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!nome.trim() || !password) {
-    setErrore("Inserisci nome utente e password");
-    return;
-  }
-  setErrore("");
-
-  try {
-    const response = await fetch("http://localhost:8080/api/v1/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username: nome, // Modifica in "nome" se il DTO Spring si aspetta 'nome'
-        password: password,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Credenziali non valide");
+  const handleSubmit = async (e) =>
+  {
+    e.preventDefault();
+    if (!nome.trim() || !password)
+    {
+      setErrore("Inserisci nome utente e password");
+      return;
     }
+    setErrore("");
 
-    const data = await response.json(); 
-    // Supponendo che il backend risponda con { token: "eyJhbG..." } oppure { jwt: "..." }
-    const token = data.token || data.jwt || data.accessToken;
+    try
+    {
+      const response = await fetch("http://localhost:8080/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: nome, // Modifica in "nome" se il DTO Spring si aspetta 'nome'
+          password: password,
+        }),
+      });
 
-    if (token) {
-      localStorage.setItem("token", token); // Salva il token con la chiave "token"
+      if (!response.ok)
+      {
+        throw new Error("Credenziali non valide");
+      }
+
+      const data = await response.json();
+      // Supponendo che il backend risponda con { token: "eyJhbG..." } oppure { jwt: "..." }
+      const token = data.token || data.jwt || data.accessToken;
+
+      if (token)
+      {
+        localStorage.setItem("token", token); // Salva il token con la chiave "token"
+      }
+
+      onLogin(data);
+    } catch (err)
+    {
+      console.error("Errore login:", err);
+      setErrore("Nome utente o password errati");
     }
-
-    onLogin(data);
-  } catch (err) {
-    console.error("Errore login:", err);
-    setErrore("Nome utente o password errati");
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6">
@@ -95,9 +106,12 @@ export default function LoginStaff({ onLogin })
 
           <button
             type="submit"
-            className="w-full bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            disabled={loading}
+            className="w-full bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
           >
-            <LogIn size={16} /> Accedi
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Accesso...</>
+              : <><LogIn size={16} /> Accedi</>}
           </button>
         </form>
 

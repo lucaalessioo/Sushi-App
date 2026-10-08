@@ -43,6 +43,9 @@ public class SecurityConfig {
                         // Endpoints pubblici per autenticazione (login / register)
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
+                        // Foto dei piatti: devono essere leggibili da <img>, che non manda il token
+                        .requestMatchers("/uploads/**").permitAll()
+
                         // Elenco completo (anche non disponibili): solo ADMIN.
                         // Va messo PRIMA della regola pubblica, altrimenti viene coperto da quella.
                         .requestMatchers(HttpMethod.GET, "/api/piatti/admin").hasAuthority("ROLE_ADMIN")
@@ -50,7 +53,7 @@ public class SecurityConfig {
                         // Consultazione piatti visibile a tutti
                         .requestMatchers(HttpMethod.GET, "/api/piatti/**").permitAll()
 
-                        // Gestione piatti riservata all'ADMIN
+                        // Gestione piatti riservata all'ADMIN (include POST /api/piatti/immagine)
                         .requestMatchers(HttpMethod.POST, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
@@ -61,7 +64,8 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
                         // Rotte ordini e carrello per TABLET e ADMIN
-                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
+                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello",
+                                "/api/v1/carrello/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
                         // Qualsiasi altra richiesta necessita di autenticazione
@@ -96,17 +100,17 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-   @Bean
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of("*"));
-        // Aggiungi PATCH all'elenco dei metodi consentiti
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")); 
+        // PATCH serve per il cambio di disponibilità dei piatti
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-    return source;
-}
+        return source;
+    }
 }

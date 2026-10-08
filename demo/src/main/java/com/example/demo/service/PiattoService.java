@@ -1,46 +1,60 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.PiattoRequestDTO;
+import com.example.demo.mapper.PiattoMapper;
 import com.example.demo.model.Piatto;
 import com.example.demo.repository.PiattoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class PiattoService {
 
     private final PiattoRepository piattoRepository;
+    private final ImmagineStorageService immagineStorage;
 
     @Transactional
     public Piatto creaPiatto(PiattoRequestDTO dto) {
+        normalizza(dto);
+        verificaCodiceUnivoco(dto.getCodicePiatto(), null);
+        return piattoRepository.save(PiattoMapper.toEntity(dto));
+    }
 
-        if (dto.getCodicePiatto() != null &&
-                !dto.getCodicePiatto().isBlank() &&
-                piattoRepository.findByCodicePiatto(dto.getCodicePiatto()).isPresent()) {
+    @Transactional
+    public Piatto aggiornaPiatto(Long id, PiattoRequestDTO dto) {
+        Piatto piatto = trova(id);
+        normalizza(dto);
+        verificaCodiceUnivoco(dto.getCodicePiatto(), id);
 
-            throw new IllegalArgumentException(
-                    "Esiste già un piatto con codice: " + dto.getCodicePiatto());
+        String vecchiaImmagine = piatto.getImmagineUrl();
+        PiattoMapper.updateEntity(piatto, dto);
+        Piatto salvato = piattoRepository.save(piatto);
+
+        // se la foto è cambiata o è stata rimossa, cancello il vecchio file
+        if (!Objects.equals(vecchiaImmagine, salvato.getImmagineUrl())) {
+            immagineStorage.elimina(vecchiaImmagine);
         }
+        return salvato;
+    }
 
-        Piatto piatto = Piatto.builder()
-                .codicePiatto(dto.getCodicePiatto())
-                .nome(dto.getNome())
-                .descrizione(dto.getDescrizione())
-                .prezzo(dto.getPrezzo())
-                .immagineUrl(dto.getImmagineUrl())
-                .disponibile(dto.getDisponibile() != null
-                        ? dto.getDisponibile()
-                        : true)
-                .isAllYouCanEat(dto.getIsAllYouCanEat() != null
-                        ? dto.getIsAllYouCanEat()
-                        : true)
-                .categoria(dto.getCategoria())
-                .build();
+    @Transactional
+    public void eliminaPiatto(Long id) {
+        Piatto piatto = trova(id);
+        piattoRepository.delete(piatto);
+        immagineStorage.elimina(piatto.getImmagineUrl());
+    }
 
+    @Transactional
+    public Piatto cambiaDisponibilita(Long id, Boolean disponibile) {
+        Piatto piatto = trova(id);
+        piatto.setDisponibile(disponibile);
         return piattoRepository.save(piatto);
     }
 
@@ -53,51 +67,39 @@ public class PiattoService {
     }
 
     public List<Piatto> getAllYouCanEat() {
-        return piattoRepository
-                .findByIsAllYouCanEatTrueAndDisponibileTrue();
+        return piattoRepository.findByIsAllYouCanEatTrueAndDisponibileTrue();
     }
 
     public List<Piatto> getAllaCarta() {
-        return piattoRepository
-                .findByIsAllYouCanEatFalseAndDisponibileTrue();
+        return piattoRepository.findByIsAllYouCanEatFalseAndDisponibileTrue();
     }
 
-    @Transactional
-    public Piatto aggiornaPiatto(Long id, PiattoRequestDTO dto) {
+    // ---------- helper ----------
 
-        Piatto piatto = piattoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato: " + id));
-
-        piatto.setCodicePiatto(dto.getCodicePiatto());
-        piatto.setNome(dto.getNome());
-        piatto.setDescrizione(dto.getDescrizione());
-        piatto.setPrezzo(dto.getPrezzo());
-        piatto.setImmagineUrl(dto.getImmagineUrl());
-        piatto.setDisponibile(dto.getDisponibile());
-        piatto.setIsAllYouCanEat(dto.getIsAllYouCanEat());
-        piatto.setCategoria(dto.getCategoria());
-
-        return piattoRepository.save(piatto);
+    private Piatto trova(Long id) {
+        return piattoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Piatto non trovato: " + id));
     }
 
-    @Transactional
-    public void eliminaPiatto(Long id) {
-
-        if (!piattoRepository.existsById(id)) {
-            throw new RuntimeException("Piatto non trovato: " + id);
+    /** Stringhe vuote -> null: due codici "" violerebbero il vincolo unique. */
+    private void normalizza(PiattoRequestDTO dto) {
+        if (dto.getCodicePiatto() != null && dto.getCodicePiatto().isBlank()) {
+            dto.setCodicePiatto(null);
         }
-
-        piattoRepository.deleteById(id);
+        if (dto.getImmagineUrl() != null && dto.getImmagineUrl().isBlank()) {
+            dto.setImmagineUrl(null);
+        }
     }
 
-    @Transactional
-    public Piatto cambiaDisponibilita(Long id, Boolean disponibile) {
-
-        Piatto piatto = piattoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Piatto non trovato: " + id));
-
-        piatto.setDisponibile(disponibile);
-
-        return piattoRepository.save(piatto);
+    private void verificaCodiceUnivoco(String codice, Long idCorrente) {
+        if (codice == null) {
+            return;
+        }
+        piattoRepository.findByCodicePiatto(codice)
+                .filter(esistente -> !esistente.getId().equals(idCorrente))
+                .ifPresent(esistente -> {
+                    throw new IllegalArgumentException("Esiste già un piatto con codice: " + codice);
+                });
     }
 }
