@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Pencil, Check, Plus, Trash2, X, Lock, LayoutGrid } from "lucide-react";
 
+const API_URL = "http://localhost:8080/api/tavoli";
+
 const STATO_LABEL = {
   LIBERO: "Libero",
   OCCUPATO: "Occupato",
@@ -24,6 +26,27 @@ const STATO_DOT = {
 
 const CICLO_TAP = ["LIBERO", "OCCUPATO", "IN_PAGAMENTO"];
 
+// Helper per costruire gli header con il token JWT
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token"); // Assicurati che la chiave combaci con dove salvi il JWT al login
+  return {
+    "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+};
+
+// Se la risposta non è ok, legge il body del backend per avere un messaggio utile
+const throwIfNotOk = async (res, fallbackMessage) => {
+  if (res.ok) return;
+  let dettaglio = "";
+  try {
+    dettaglio = await res.text();
+  } catch {
+    /* ignora */
+  }
+  throw new Error(`${fallbackMessage} (${res.status}) ${dettaglio}`);
+};
+
 export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,36 +55,13 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   const floorRef = useRef(null);
   const dragInfo = useRef(null);
 
-  // Helper per costruire gli header con il token JWT
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token"); // Assicurati che la chiave combaci con dove salvi il JWT al login
-    return {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-    };
-  };
-
-  if (ruolo !== "ROLE_ADMIN") {
-    return (
-      <div className="bg-neutral-900 border border-neutral-800 text-neutral-100 rounded-3xl p-8 min-h-[300px] flex flex-col items-center justify-center text-center gap-2">
-        <Lock size={28} className="text-neutral-600 mb-1" />
-        <p className="font-bold m-0">Sezione riservata al personale</p>
-        <p className="text-sm text-neutral-400 m-0">
-          Il piano sala è visibile solo dal lato ristorante, non dai tablet dei tavoli.
-        </p>
-      </div>
-    );
-  }
-
   // 1. Caricamento iniziale tavoli
   useEffect(() => {
     let isMounted = true;
     async function loadTavoli() {
       try {
-        const response = await fetch("http://localhost:8080/api/tavoli", {
-          headers: getAuthHeaders(),
-        });
-        if (!response.ok) throw new Error("Errore nel recupero tavoli");
+        const response = await fetch(API_URL, { headers: getAuthHeaders() });
+        await throwIfNotOk(response, "Errore nel recupero tavoli");
         const data = await response.json();
         if (isMounted) setTables(data);
       } catch (err) {
@@ -101,20 +101,18 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     const nuovoStato = CICLO_TAP[(idx + 1) % CICLO_TAP.length];
 
     try {
-      const res = await fetch(`http://localhost:8080/api/tavoli/${id}/stato`, {
+      const res = await fetch(`${API_URL}/${id}/stato`, {
         method: "PATCH",
         headers: getAuthHeaders(),
         body: JSON.stringify({ stato: nuovoStato }),
       });
-
-      if (!res.ok) throw new Error("Errore durante l'aggiornamento dello stato");
+      await throwIfNotOk(res, "Errore durante l'aggiornamento dello stato");
       const tavoloAggiornato = await res.json();
 
-      setTables((prev) =>
-        prev.map((t) => (t.id === id ? tavoloAggiornato : t))
-      );
+      setTables((prev) => prev.map((t) => (t.id === id ? tavoloAggiornato : t)));
     } catch (err) {
       console.error("Errore modifica stato:", err);
+      alert("Impossibile aggiornare lo stato del tavolo");
     }
   };
 
@@ -128,16 +126,24 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     setModal({ type: "add", x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
   };
 
+  // FIX: dragInfo va impostato SEMPRE (anche fuori da editMode),
+  // altrimenti nel pointerUp il tap per cambiare stato non parte mai.
   const handleTablePointerDown = (e, table) => {
     e.stopPropagation();
-    if (!editMode) return;
-    dragInfo.current = { id: table.id, startX: e.clientX, startY: e.clientY, moved: false };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    dragInfo.current = {
+      id: table.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      x: table.x,
+      y: table.y,
+    };
+    if (editMode) e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handleTablePointerMove = (e, table) => {
     const info = dragInfo.current;
-    if (!info || info.id !== table.id) return;
+    if (!editMode || !info || info.id !== table.id) return;
     const dx = e.clientX - info.startX;
     const dy = e.clientY - info.startY;
     if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
@@ -147,6 +153,9 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
       let y = ((e.clientY - rect.top) / rect.height) * 100;
       x = Math.round(Math.max(6, Math.min(94, x)) * 10) / 10;
       y = Math.round(Math.max(8, Math.min(92, y)) * 10) / 10;
+      // Salvo l'ultima posizione nel ref: è quella da mandare al backend
+      info.x = x;
+      info.y = y;
       setTables((prev) => prev.map((t) => (t.id === table.id ? { ...t, x, y } : t)));
     }
   };
@@ -158,17 +167,16 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     if (!info || info.id !== table.id) return;
 
     if (info.moved) {
-      const tModificato = tables.find((t) => t.id === table.id);
-      if (tModificato) {
-        try {
-          await fetch(`http://localhost:8080/api/tavoli/${table.id}/posizione`, {
-            method: "PATCH",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ x: tModificato.x, y: tModificato.y }),
-          });
-        } catch (err) {
-          console.error("Errore salvataggio posizione:", err);
-        }
+      try {
+        const res = await fetch(`${API_URL}/${table.id}/posizione`, {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ x: info.x, y: info.y }),
+        });
+        await throwIfNotOk(res, "Errore salvataggio posizione");
+      } catch (err) {
+        console.error("Errore salvataggio posizione:", err);
+        alert("Impossibile salvare la nuova posizione del tavolo");
       }
     } else if (editMode) {
       setModal({ type: "edit", table });
@@ -197,19 +205,19 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/tavoli", {
+      const res = await fetch(API_URL, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(nuovoTavoloDTO),
       });
-
-      if (!res.ok) throw new Error("Errore salvataggio tavolo");
+      await throwIfNotOk(res, "Errore salvataggio tavolo");
       const salvato = await res.json();
 
       setTables((prev) => [...prev, salvato]);
       setModal(null);
     } catch (err) {
       console.error("Errore durante la creazione del tavolo:", err);
+      alert("Impossibile creare il tavolo");
     }
   };
 
@@ -222,45 +230,66 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
       return;
     }
 
+    // Uso `tables` (non modal.table) perché contiene le coordinate più recenti dopo un drag
+    const tavoloCorrente = tables.find((t) => t.id === id);
+    if (!tavoloCorrente) return;
+
+    // FIX: x e y sono @NotNull nel DTO backend, quindi vanno sempre inviate
     const tavoloModificatoDTO = {
       numero,
       sala: form.sala.trim(),
       posti: parseInt(form.posti, 10) || null,
       stato: form.stato,
+      x: tavoloCorrente.x,
+      y: tavoloCorrente.y,
     };
 
     try {
-      const res = await fetch(`http://localhost:8080/api/tavoli/${id}`, {
+      const res = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(tavoloModificatoDTO),
       });
-
-      if (!res.ok) throw new Error("Errore aggiornamento tavolo");
+      await throwIfNotOk(res, "Errore aggiornamento tavolo");
       const salvato = await res.json();
 
       setTables((prev) => prev.map((t) => (t.id === id ? salvato : t)));
       setModal(null);
     } catch (err) {
       console.error("Errore durante la modifica del tavolo:", err);
+      alert("Impossibile modificare il tavolo");
     }
   };
 
   // 6. Cancellazione tavolo
   const deleteTable = async (id) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/tavoli/${id}`, {
+      const res = await fetch(`${API_URL}/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Errore eliminazione tavolo");
+      await throwIfNotOk(res, "Errore eliminazione tavolo");
 
       setTables((prev) => prev.filter((t) => t.id !== id));
       setModal(null);
     } catch (err) {
       console.error("Errore eliminazione:", err);
+      alert("Impossibile eliminare il tavolo");
     }
   };
+
+  // FIX: il controllo sul ruolo sta DOPO tutti gli hook (regole degli hook di React)
+  if (ruolo !== "ROLE_ADMIN") {
+    return (
+      <div className="bg-neutral-900 border border-neutral-800 text-neutral-100 rounded-3xl p-8 min-h-[300px] flex flex-col items-center justify-center text-center gap-2">
+        <Lock size={28} className="text-neutral-600 mb-1" />
+        <p className="font-bold m-0">Sezione riservata al personale</p>
+        <p className="text-sm text-neutral-400 m-0">
+          Il piano sala è visibile solo dal lato ristorante, non dai tablet dei tavoli.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 text-neutral-100 rounded-3xl p-5 sm:p-6 min-h-[640px]">
