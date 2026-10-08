@@ -1,6 +1,6 @@
 package com.example.demo.service;
 
-
+import java.nio.charset.StandardCharsets;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -18,7 +18,8 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // Inserisci in application.properties una chiave segreta di almeno 256 bit generata in Base64
+    // Se usi la stringa di default HEX sopra, usiamo Decoders.HEX. 
+    // Se la sovrascrivi in application.properties con una Base64, usa una chiave valida senza caratteri speciali.
     @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
@@ -70,7 +71,7 @@ public class JwtService {
     }
 
     private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
-    }
+}
 }

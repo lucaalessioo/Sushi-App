@@ -7,20 +7,44 @@ export default function LoginStaff({ onLogin })
   const [password, setPassword] = useState("");
   const [errore, setErrore] = useState("");
 
-  const handleSubmit = (e) =>
-  {
-    e.preventDefault();
-    if (!nome.trim() || !password)
-    {
-      setErrore("Inserisci nome utente e password");
-      return;
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!nome.trim() || !password) {
+    setErrore("Inserisci nome utente e password");
+    return;
+  }
+  setErrore("");
+
+  try {
+    const response = await fetch("http://localhost:8080/api/v1/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: nome, // Modifica in "nome" se il DTO Spring si aspetta 'nome'
+        password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Credenziali non valide");
     }
-    setErrore("");
-    // In produzione: chiamata POST /api/auth/login al backend Spring Boot,
-    // che verifica le credenziali contro l'entità Utente (ROLE_ADMIN) e
-    // restituisce un JWT da salvare e allegare alle richieste successive.
-    onLogin({ nome });
-  };
+
+    const data = await response.json(); 
+    // Supponendo che il backend risponda con { token: "eyJhbG..." } oppure { jwt: "..." }
+    const token = data.token || data.jwt || data.accessToken;
+
+    if (token) {
+      localStorage.setItem("token", token); // Salva il token con la chiave "token"
+    }
+
+    onLogin(data);
+  } catch (err) {
+    console.error("Errore login:", err);
+    setErrore("Nome utente o password errati");
+  }
+};
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6">

@@ -56,9 +56,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
 
+                        // Gestione tavoli: ADMIN e TABLET
+                        .requestMatchers("/api/tavoli", "/api/tavoli/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
+
                         // Rotte ordini e carrello per TABLET e ADMIN
-                        .requestMatchers("/api/v1/ordini/**", "/api/v1/carrello/**")
-                        .hasAnyAuthority("ROLE_TABLET", "ROLE_ADMIN")
+                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
                         // Qualsiasi altra richiesta necessita di autenticazione
                         .anyRequest().authenticated())
@@ -92,18 +96,17 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
+   @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Se fai test da mobile o tablet reale, aggiungi anche "*" oppure l'IP
-        // specifico
         configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Aggiungi PATCH all'elenco dei metodi consentiti
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")); 
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    return source;
+}
 }
