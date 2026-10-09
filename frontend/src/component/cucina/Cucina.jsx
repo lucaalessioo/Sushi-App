@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ChefHat, Clock, Sparkles, Send, Flame, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { ChefHat, Clock, Sparkles, Send, Flame, CheckCircle2, XCircle, RefreshCw, Printer } from "lucide-react";
 
 // Stessa chiave usata da CodaOrdini e DettaglioOrdineTavolo: gli ordini restano condivisi.
 const STORAGE_KEY = "admin:ordini";
@@ -13,17 +13,21 @@ const SOGLIA_GIALLO = 5;  // da 0 a 5 min  -> blu (appena arrivata)
 const SOGLIA_ROSSO = 10;  // da 5 a 10 min -> giallo (media attesa), oltre -> rosso (ferma da tanto)
 
 const STATI = {
-  IN_INVIATO: { label: "Inviato", icon: Send, active: "bg-amber-400 text-neutral-950 border-amber-400", badge: "bg-amber-400/10 text-amber-400 border-amber-400/30" },
+  IN_INVIATO: { label: "Ricevuto", icon: Send, active: "bg-amber-400 text-neutral-950 border-amber-400", badge: "bg-amber-400/10 text-amber-400 border-amber-400/30" },
   IN_PREPARAZIONE: { label: "In preparazione", icon: Flame, active: "bg-blue-500 text-white border-blue-500", badge: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
-  COMPLETATO: { label: "Completato", icon: CheckCircle2, active: "bg-green-500 text-neutral-950 border-green-500", badge: "bg-green-500/10 text-green-400 border-green-500/30" },
+  COMPLETATO: { label: "Inviato", icon: CheckCircle2, active: "bg-green-500 text-neutral-950 border-green-500", badge: "bg-green-500/10 text-green-400 border-green-500/30" },
   CANCELLATO: { label: "Cancellato", icon: XCircle, active: "bg-red-500 text-white border-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/30" },
 };
-const ORDINE_BOTTONI = ["IN_INVIATO", "IN_PREPARAZIONE", "COMPLETATO", "CANCELLATO"];
+const ORDINE_BOTTONI_PIATTO = ["COMPLETATO", "CANCELLATO"];
 const STATI_CHIUSI = ["COMPLETATO", "CANCELLATO", "PAGATO"];
+
+// Un piatto è "da servire" finché non è stato inviato al tavolo o cancellato.
+// Solo questi piatti compaiono nella vista "Attivi".
+const STATI_PIATTO_APERTI = ["IN_INVIATO", "IN_PREPARAZIONE"];
 
 const FILTRI = [
   { id: "attivi", label: "Attivi", match: (o) => o.stato === "IN_INVIATO" || o.stato === "IN_PREPARAZIONE" },
-  { id: "completati", label: "Completati", match: (o) => o.stato === "COMPLETATO" || o.stato === "PAGATO" },
+  { id: "completati", label: "Inviati", match: (o) => o.stato === "COMPLETATO" || o.stato === "PAGATO" },
   { id: "cancellati", label: "Cancellati", match: (o) => o.stato === "CANCELLATO" },
   { id: "tutti", label: "Tutti", match: () => true },
 ];
@@ -55,6 +59,46 @@ function formattaTimer(ordine, now)
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+// Gli ordini vecchi non hanno lo stato sui piatti: si eredita quello dell'ordine.
+function statoPiatto(ordine, piatto)
+{
+  if (piatto.stato) return piatto.stato;
+  return ordine.stato === "PAGATO" ? "COMPLETATO" : ordine.stato;
+}
+
+const piattoDaServire = (ordine, piatto) => STATI_PIATTO_APERTI.includes(statoPiatto(ordine, piatto));
+
+function contaPiattiDaServire(ordine)
+{
+  return ordine.dettagli.filter((d) => piattoDaServire(ordine, d)).length;
+}
+
+// Stato dell'ordine ricavato dai suoi piatti
+function derivaStatoOrdine(dettagli)
+{
+  const stati = dettagli.map((d) => d.stato);
+  if (stati.every((s) => s === "CANCELLATO")) return "CANCELLATO";
+  const validi = stati.filter((s) => s !== "CANCELLATO");
+  if (validi.every((s) => s === "COMPLETATO")) return "COMPLETATO";
+  if (validi.some((s) => s === "IN_PREPARAZIONE" || s === "COMPLETATO")) return "IN_PREPARAZIONE";
+  return "IN_INVIATO";
+}
+
+// Ricostruisce l'ordine a partire dai piatti: stato e timer restano coerenti.
+function ricostruisciOrdine(ordine, dettagli)
+{
+  const stato = ordine.stato === "PAGATO" ? "PAGATO" : derivaStatoOrdine(dettagli);
+  return {
+    ...ordine,
+    dettagli,
+    stato,
+    chiusoAt: STATI_CHIUSI.includes(stato) ? (ordine.chiusoAt || new Date().toISOString()) : null,
+  };
+}
+
+// Fissa lo stato esplicito su ogni piatto (serve per gli ordini salvati prima di questa funzione)
+const normalizzaDettagli = (ordine) => ordine.dettagli.map((d) => ({ ...d, stato: statoPiatto(ordine, d) }));
+
 async function leggiOrdini()
 {
   try
@@ -71,12 +115,14 @@ async function scriviOrdini(ordini)
 {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ordini));
 }
+
 export default function Cucina()
 {
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [filtro, setFiltro] = useState("attivi");
+  const [piattoAperto, setPiattoAperto] = useState(null); // "idOrdine-indice"
 
   // Tick del timer ogni secondo
   useEffect(() =>
@@ -94,7 +140,17 @@ export default function Cucina()
       try
       {
         const dati = await leggiOrdini();
-        if (mounted) setOrdini(dati);
+        // Ogni nuova comanda viene presa in carico automaticamente dalla cucina.
+        const normalizzati = dati.map((o) =>
+        {
+          if (o.stato !== "IN_INVIATO") return o;
+          const dettagli = normalizzaDettagli(o).map((d) =>
+            d.stato === "IN_INVIATO" ? { ...d, stato: "IN_PREPARAZIONE" } : d
+          );
+          return ricostruisciOrdine(o, dettagli);
+        });
+        if (JSON.stringify(normalizzati) !== JSON.stringify(dati)) await scriviOrdini(normalizzati);
+        if (mounted) setOrdini(normalizzati);
       } catch
       {
         /* nessun ordine ancora salvato */
@@ -124,17 +180,75 @@ export default function Cucina()
     }
   }, []);
 
+  // Azione sull'intero ordine: si applica solo ai piatti ancora da servire.
+  // I piatti già inviati o cancellati restano come sono.
   const cambiaStato = (ordine, nuovoStato) =>
   {
-    if (ordine.stato === nuovoStato) return;
-    if (nuovoStato === "CANCELLATO" && !window.confirm(`Cancellare l'ordine del tavolo ${ordine.tavoloNumero}?`)) return;
+    if (contaPiattiDaServire(ordine) === 0) return;
+    if (nuovoStato === "CANCELLATO" && !window.confirm(`Cancellare i piatti ancora da servire del tavolo ${ordine.tavoloNumero}?`)) return;
 
-    aggiornaOrdine(ordine.id, (o) => ({
-      ...o,
-      stato: nuovoStato,
-      chiusoAt: STATI_CHIUSI.includes(nuovoStato) ? new Date().toISOString() : null,
-    }));
+    aggiornaOrdine(ordine.id, (o) =>
+    {
+      const dettagli = normalizzaDettagli(o).map((d) =>
+        STATI_PIATTO_APERTI.includes(d.stato) ? { ...d, stato: nuovoStato } : d
+      );
+      return ricostruisciOrdine(o, dettagli);
+    });
   };
+
+  const cambiaStatoPiatto = (ordine, indice, nuovoStato) =>
+  {
+    const piatto = ordine.dettagli[indice];
+    if (statoPiatto(ordine, piatto) === nuovoStato) return;
+    if (nuovoStato === "CANCELLATO" && !window.confirm(`Cancellare "${piatto.nome}" (tavolo ${ordine.tavoloNumero})?`)) return;
+
+    aggiornaOrdine(ordine.id, (o) =>
+    {
+      const dettagli = normalizzaDettagli(o).map((d, i) => (i === indice ? { ...d, stato: nuovoStato } : d));
+      return ricostruisciOrdine(o, dettagli);
+    });
+  };
+
+  // Rimuove definitivamente l'ordine. Possibile solo quando non ci sono più piatti da servire.
+  const eliminaOrdine = async (ordine) =>
+  {
+    if (contaPiattiDaServire(ordine) > 0) return;
+    const avviso = ordine.stato === "PAGATO"
+      ? `Eliminare l'ordine del tavolo ${ordine.tavoloNumero}?`
+      : `Eliminare l'ordine del tavolo ${ordine.tavoloNumero}? Verrà rimosso definitivamente anche dagli altri schermi (es. cassa).`;
+    if (!window.confirm(avviso)) return;
+
+    try
+    {
+      const ultimi = await leggiOrdini();
+      const next = ultimi.filter((o) => o.id !== ordine.id);
+      setOrdini(next);
+      await scriviOrdini(next);
+    } catch (e)
+    {
+      console.error("Errore eliminazione ordine", e);
+    }
+  };
+
+  // Stampa la comanda tramite la finestra di stampa del browser/PC collegato alla stampante.
+  const stampaOrdine = (ordine) =>
+  {
+    const righe = ordine.dettagli.map((d) =>
+      `<li><span>${String(d.quantita ?? 1)} × ${escapeHtml(d.nome ?? "Piatto")}</span><small>${escapeHtml(statoPiatto(ordine, d))}</small></li>`
+    ).join("");
+    const finestra = window.open("", "_blank", "width=420,height=650");
+    if (!finestra)
+    {
+      window.alert("La stampa è stata bloccata dal browser. Consenti i popup per stampare la comanda.");
+      return;
+    }
+    finestra.document.write(`<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Comanda tavolo ${escapeHtml(ordine.tavoloNumero)}</title><style>
+      body{font-family:Arial,sans-serif;color:#000;padding:16px;max-width:340px;margin:0 auto}h1{font-size:22px;margin:0 0 6px}p{font-size:12px;margin:4px 0 14px}ul{list-style:none;padding:0;margin:0}li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #999;padding:10px 0;font-size:15px}small{font-size:9px;max-width:90px;overflow-wrap:anywhere}@media print{body{padding:0;width:100%}}
+      </style></head><body><h1>COMANDA — TAVOLO ${escapeHtml(ordine.tavoloNumero)}</h1><p>${new Date(ordine.dataOra).toLocaleString("it-IT")}</p><ul>${righe}</ul><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();};<\/script></body></html>`);
+    finestra.document.close();
+  };
+
+  const escapeHtml = (val) => String(val).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   const generaOrdineDiProva = async () =>
   {
@@ -147,9 +261,9 @@ export default function Cucina()
     const nuovo = {
       id: Date.now() + Math.random(),
       tavoloNumero: Math.floor(Math.random() * 20) + 1,
-      stato: "IN_INVIATO",
+      stato: "IN_PREPARAZIONE",
       dataOra: new Date().toISOString(),
-      dettagli: esempi[Math.floor(Math.random() * esempi.length)],
+      dettagli: esempi[Math.floor(Math.random() * esempi.length)].map((d) => ({ ...d, stato: "IN_PREPARAZIONE" })),
     };
     try
     {
@@ -242,6 +356,11 @@ export default function Cucina()
             const urg = URGENZA[livelloUrgenza(o, now)];
             const statoInfo = STATI[o.stato];
             const chiuso = STATI_CHIUSI.includes(o.stato);
+            const daServire = contaPiattiDaServire(o);
+            // Nella vista "Attivi" i piatti già inviati o cancellati spariscono dalla lista.
+            const piattiVisibili = o.dettagli
+              .map((d, i) => ({ d, i }))
+              .filter(({ d }) => filtro !== "attivi" || piattoDaServire(o, d));
 
             return (
               <div
@@ -264,48 +383,90 @@ export default function Cucina()
                   </span>
                 </div>
 
-                {/* Stato corrente */}
-                {statoInfo && (
-                  <span className={`self-start text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border mt-2 ${statoInfo.badge}`}>
-                    {statoInfo.label}
+                {/* Stato corrente + piatti ancora da servire */}
+                <div className="flex items-center gap-2 mt-2">
+                  {statoInfo && (
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statoInfo.badge}`}>
+                      {statoInfo.label}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-neutral-500">
+                    {daServire === 0 ? "Nessun piatto da servire" : `${daServire} ${daServire === 1 ? "piatto" : "piatti"} da servire`}
                   </span>
-                )}
+                </div>
 
-                {/* Piatti (ogni riga è pronta per diventare cliccabile e avere il suo stato) */}
+                {/* Piatti: cliccando si apre il pannello per cambiare lo stato del singolo piatto */}
                 <ul className="space-y-1.5 my-4 flex-1">
-                  {o.dettagli.map((d, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-sm"
-                    >
-                      <span className={`text-neutral-200 ${o.stato === "CANCELLATO" ? "line-through text-neutral-500" : ""}`}>
-                        {d.nome}
-                      </span>
-                      <span className="font-mono font-bold text-amber-400">x{d.quantita}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* Bottoni di stato */}
-                <div className="grid grid-cols-2 gap-2">
-                  {ORDINE_BOTTONI.map((s) =>
+                  {piattiVisibili.length === 0 && (
+                    <li className="text-xs text-neutral-500 text-center py-3">Nessun piatto da servire.</li>
+                  )}
+                  {piattiVisibili.map(({ d, i }) =>
                   {
-                    const info = STATI[s];
-                    const Icon = info.icon;
-                    const attivo = o.stato === s;
+                    const sp = statoPiatto(o, d);
+                    const info = STATI[sp];
+                    const key = `${o.id}-${i}`;
+                    const aperto = piattoAperto === key;
+                    const annullato = sp === "CANCELLATO";
+
                     return (
-                      <button
-                        key={s}
-                        onClick={() => cambiaStato(o, s)}
-                        className={`flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-xl border transition-colors cursor-pointer ${attivo
-                          ? info.active
-                          : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
-                          }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" /> {info.label}
-                      </button>
+                      <li key={i} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setPiattoAperto(aperto ? null : key)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-neutral-800/60 transition-colors cursor-pointer"
+                        >
+                          <span className="flex flex-col gap-1 min-w-0">
+                            <span className={`truncate ${annullato ? "line-through text-neutral-500" : "text-neutral-200"}`}>
+                              {d.nome}
+                            </span>
+                            {info && (
+                              <span className={`self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${info.badge}`}>
+                                {info.label}
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-mono font-bold text-amber-400 shrink-0">x{d.quantita}</span>
+                        </button>
+
+                        {aperto && (
+                          <div className="grid grid-cols-2 gap-1.5 p-2 border-t border-neutral-800 bg-neutral-950/60">
+                            {ORDINE_BOTTONI_PIATTO.map((s) =>
+                            {
+                              const si = STATI[s];
+                              const Icon = si.icon;
+                              return (
+                                <button
+                                  key={s}
+                                  onClick={() => { cambiaStatoPiatto(o, i, s); setPiattoAperto(null); }}
+                                  className={`flex items-center justify-center gap-1.5 text-[11px] font-bold py-2 rounded-lg border transition-colors cursor-pointer ${sp === s
+                                    ? si.active
+                                    : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                                    }`}
+                                >
+                                  <Icon className="w-3 h-3" /> {si.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </li>
                     );
                   })}
+                </ul>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => stampaOrdine(o)}
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-xl border bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Stampa
+                  </button>
+                  <button
+                    onClick={() => cambiaStato(o, "CANCELLATO")}
+                    disabled={daServire === 0}
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-xl border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <XCircle className="w-3.5 h-3.5" /> Cancellato
+                  </button>
                 </div>
               </div>
             );
