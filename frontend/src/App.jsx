@@ -4,6 +4,7 @@ import MenuAll from './component/MenuAll';
 import Recensione from './component/Recensione';
 import AdminApp from './component/admin/AdminApp';
 import MenuAlLaCarta from './component/MenuCarta';
+import CucinaApp from './component/cucina/Cucinaapp';
 
 function App()
 {
@@ -15,11 +16,20 @@ function App()
   // invece del flusso cliente. Il tablet al tavolo non ci arriva mai perché
   // non ha motivo di navigare a quell'indirizzo; tu invece lo apri/salvi
   // come preferito sul dispositivo che usi in sala.
-  const isAdminRoute = window.location.pathname.startsWith('/admin');
+  const path = window.location.pathname;
+  const isAdminRoute = path === '/admin' || path.startsWith('/admin/');
+  const isCucinaRoute = path === '/cucina' || path.startsWith('/cucina/');
 
   if (isAdminRoute)
   {
     return <AdminApp />;
+  }
+
+  // /cucina: app separata per la cucina, con login e schermata propri.
+  // Qualsiasi altro URL (es. "/") mostra il flusso cliente (HomePage + menu).
+  if (isCucinaRoute)
+  {
+    return <CucinaApp />;
   }
 
   // HomePage chiama onSelection('all-you-can-eat', config) oppure onSelection('alla-carta')
