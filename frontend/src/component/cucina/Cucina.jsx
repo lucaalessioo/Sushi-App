@@ -57,15 +57,20 @@ function formattaTimer(ordine, now)
 
 async function leggiOrdini()
 {
-  const res = await window.storage.get(STORAGE_KEY, true);
-  return res && res.value ? JSON.parse(res.value) : [];
+  try
+  {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch
+  {
+    return [];
+  }
 }
 
 async function scriviOrdini(ordini)
 {
-  await window.storage.set(STORAGE_KEY, JSON.stringify(ordini), true);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(ordini));
 }
-
 export default function Cucina()
 {
   const [ordini, setOrdini] = useState([]);
