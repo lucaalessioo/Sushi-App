@@ -46,7 +46,7 @@ const MenuOptionCard = ({ title, description, icon: Icon, price, onSelect, prima
   );
 };
 
-const HomePage = ({ onSelection }) =>
+const HomePage = ({ onSelection, numeroTavolo = 40, onLogout }) =>
 {
   const bgImageUrl = "https://images.unsplash.com/photo-1617196035154-1e7e6e28b0db?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
@@ -95,8 +95,19 @@ const HomePage = ({ onSelection }) =>
               Sushi <span className="text-amber-400">Zen</span>
             </h1>
           </div>
-          <div className="text-sm font-mono p-3 px-5 bg-neutral-900/80 backdrop-blur-md rounded-full border border-neutral-700/60 shadow-lg">
-            Tavolo <span className="text-amber-400 font-bold">40</span>
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-mono p-3 px-5 bg-neutral-900/80 backdrop-blur-md rounded-full border border-neutral-700/60 shadow-lg">
+              Tavolo <span className="text-amber-400 font-bold">{numeroTavolo}</span>
+            </div>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="text-xs text-neutral-400 hover:text-neutral-200 underline underline-offset-2 cursor-pointer bg-transparent border-0"
+              >
+                Esci
+              </button>
+            )}
           </div>
         </header>
 

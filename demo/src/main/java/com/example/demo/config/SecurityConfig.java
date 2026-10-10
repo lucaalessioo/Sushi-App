@@ -62,14 +62,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/tavoli", "/api/tavoli/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
-                        // Rotte ordini e carrello per TABLET, ADMIN, CUCINA e CASSA
+                        // Rotte ordini e carrello: richiedono JWT (tablet / admin)
                         .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET", "ROLE_CUCINA", "ROLE_CASSA")
-
-                        // Web Socket
-                        // .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
-                        .permitAll()
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
                         // Qualsiasi altra richiesta necessita di autenticazione
                         .anyRequest().authenticated())

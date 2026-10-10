@@ -36,6 +36,7 @@ const LoginTablet = ({ onLoginSuccess }) =>
                     headers: {
                         "Content-Type": "application/json"
                     },
+                    credentials: "include",
                     body: JSON.stringify({
                         username: nome,
                         password
@@ -52,23 +53,22 @@ const LoginTablet = ({ onLoginSuccess }) =>
 
             const data = await response.json();
 
+            if (data.ruolo !== "ROLE_TABLET" || data.tavoloId == null)
+            {
+                throw new Error("Accedi con un account tablet (non admin)");
+            }
 
-            localStorage.setItem(
-                "token",
-                data.token
-            );
+            const utente = {
+                nome: data.username,
+                ruolo: data.ruolo,
+                tavoloId: data.tavoloId,
+                numeroTavolo: data.numeroTavolo,
+            };
 
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("utente", JSON.stringify(utente));
 
-            localStorage.setItem(
-                "utente",
-                JSON.stringify(data.utente)
-            );
-
-
-            onLoginSuccess({
-                token: data.token,
-                tavolo: data.utente.tavolo.numero
-            });
+            onLoginSuccess(utente);
 
 
         } catch (err)

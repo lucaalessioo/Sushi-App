@@ -34,7 +34,7 @@ const CATEGORY_ICONS = {
 import Card from './Card';
 import Carrello from './Carrello';
 
-const MenuAlLaCarta = ({ onBack, onOpenReviews, tableNumber = 40 }) => {
+const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) => {
     const { dishes, loading, error, reload } = usePiatti('alla-carta');
 
     const [activeCategory, setActiveCategory] = useState('nuovi');
@@ -119,8 +119,8 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tableNumber = 40 }) => {
                 };
             }).filter(Boolean);
 
-            // Invia ordine al backend (Spring Boot gestisce i cookie di sessione/autenticazione automaticamente via fetch con credentials o token)
-            await inviaOrdineBackend(tableNumber, carrelloItems);
+            // tavoloId = id utente tablet (PK), non il numero visualizzato
+            await inviaOrdineBackend(tavoloId ?? tableNumber, carrelloItems);
 
             setSentOrders((prev) => [
                 ...prev,

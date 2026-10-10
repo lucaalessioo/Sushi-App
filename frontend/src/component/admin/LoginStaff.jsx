@@ -24,8 +24,9 @@ export default function LoginStaff({ onLogin })
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
-          username: nome, // Modifica in "nome" se il DTO Spring si aspetta 'nome'
+          username: nome,
           password: password,
         }),
       });
@@ -36,15 +37,21 @@ export default function LoginStaff({ onLogin })
       }
 
       const data = await response.json();
-      // Supponendo che il backend risponda con { token: "eyJhbG..." } oppure { jwt: "..." }
       const token = data.token || data.jwt || data.accessToken;
+      const utente = {
+        nome: data.username || nome,
+        ruolo: data.ruolo,
+        tavoloId: data.tavoloId,
+        numeroTavolo: data.numeroTavolo,
+      };
 
       if (token)
       {
-        localStorage.setItem("token", token); // Salva il token con la chiave "token"
+        localStorage.setItem("token", token);
+        localStorage.setItem("utente", JSON.stringify(utente));
       }
 
-      onLogin(data);
+      onLogin(utente);
     } catch (err)
     {
       console.error("Errore login:", err);

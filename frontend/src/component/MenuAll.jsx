@@ -16,7 +16,7 @@ import { inviaOrdineBackend } from '../services/ordiniApi'; // 👈 Import del s
 import Card from './Card';
 import Carrello from './Carrello';
 
-const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null, tavoloId = 40 }) => {
+const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null, tavoloId, numeroTavolo }) => {
   const { dishes, loading, error, reload } = usePiatti(orderType);
 
   const [activeCategory, setActiveCategory] = useState('nuovi');
@@ -115,7 +115,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
                 {headerBadgeLabel}
               </span>
-              <span className="text-xs text-neutral-400 font-mono">Tavolo {tavoloId}</span>
+              <span className="text-xs text-neutral-400 font-mono">Tavolo {numeroTavolo ?? tavoloId}</span>
               {isAllYouCanEat && orderConfig?.tableTotal != null && (
                 <span className="text-xs text-neutral-400 font-mono">
                   · €{Number(orderConfig.tableTotal).toFixed(2)} fisso
