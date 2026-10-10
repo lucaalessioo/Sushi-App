@@ -30,14 +30,13 @@ public class AuthController {
         Utente utente = (Utente) authentication.getPrincipal();
         String jwtToken = jwtService.generateToken(utente);
 
-        // 1. Crea il cookie HTTP-Only blindato con il token JWT
+        // Cookie HTTP-Only allineato alla scadenza JWT (24h di default)
         Cookie jwtCookie = new Cookie("jwt", jwtToken);
-        jwtCookie.setHttpOnly(true);  // Impedisce qualsiasi accesso via JavaScript/Console
-        jwtCookie.setSecure(false);   // Imposta a true in produzione quando usi HTTPS
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(false); // true in produzione con HTTPS
         jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(7 * 24 * 60 * 60); // Durata: 7 giorni (o a tua scelta)
-
-        // 2. Aggiungi il cookie alla risposta HTTP
+        jwtCookie.setMaxAge(24 * 60 * 60);
+        jwtCookie.setAttribute("SameSite", "Lax");
         response.addCookie(jwtCookie);
 
         // 3. Restituisci i dati utente nella risposta (senza bisogno di usare il token lato JS)
@@ -54,12 +53,11 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse response) {
-        // Distrugge il cookie azzerando il MaxAge
         Cookie jwtCookie = new Cookie("jwt", null);
         jwtCookie.setHttpOnly(true);
         jwtCookie.setPath("/");
         jwtCookie.setMaxAge(0);
-
+        jwtCookie.setAttribute("SameSite", "Lax");
         response.addCookie(jwtCookie);
 
         return ResponseEntity.ok().build();

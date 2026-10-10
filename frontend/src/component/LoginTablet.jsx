@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { LockKeyhole, ArrowRight, Infinity, AlertCircle } from "lucide-react";
+import { salvaSessione, clearSession } from "./admin/auth";
 
 const LoginTablet = ({ onLoginSuccess }) =>
 {
@@ -55,6 +56,7 @@ const LoginTablet = ({ onLoginSuccess }) =>
 
             if (data.ruolo !== "ROLE_TABLET" || data.tavoloId == null)
             {
+                clearSession();
                 throw new Error("Accedi con un account tablet (non admin)");
             }
 
@@ -65,9 +67,7 @@ const LoginTablet = ({ onLoginSuccess }) =>
                 numeroTavolo: data.numeroTavolo,
             };
 
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("utente", JSON.stringify(utente));
-
+            salvaSessione(data.token, utente);
             onLoginSuccess(utente);
 
 

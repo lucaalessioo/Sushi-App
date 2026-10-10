@@ -3,6 +3,7 @@
 
 const TOKEN_KEY = "token";
 const USER_KEY = "utente";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 
@@ -16,6 +17,11 @@ export function clearSession()
 {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  // Best-effort: cancella anche il cookie HttpOnly jwt sul backend
+  fetch(`${API_URL}/api/v1/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => {});
 }
 
 // Legge la scadenza ("exp") dal payload del JWT, senza verificare la firma (lo fa il backend)
@@ -36,7 +42,11 @@ function tokenScaduto(token)
 export function getUtente()
 {
   const token = getToken();
-  if (!token || tokenScaduto(token))
+  if (!token)
+  {
+    return null;
+  }
+  if (tokenScaduto(token))
   {
     clearSession();
     return null;

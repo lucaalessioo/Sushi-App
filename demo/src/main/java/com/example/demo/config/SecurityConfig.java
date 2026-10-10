@@ -66,6 +66,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
+                        // SockJS / WebSocket (notifiche cucina)
+                        .requestMatchers("/ws", "/ws/**").permitAll()
+
                         // Qualsiasi altra richiesta necessita di autenticazione
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

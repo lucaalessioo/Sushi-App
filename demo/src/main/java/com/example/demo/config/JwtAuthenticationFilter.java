@@ -18,6 +18,8 @@ import com.example.demo.service.CustomUserDetailsService;
 import com.example.demo.service.JwtService;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -33,49 +35,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String jwt = null;
+        // Bearer ha priorità sul cookie: localStorage è aggiornato al login,
+        // mentre un cookie jwt vecchio/scaduto (maxAge 7gg vs JWT 24h) può restare.
+        List<String> candidati = new ArrayList<>(2);
 
-        // 1. Cerca il token nei Cookie inviati dal browser
+        final String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            candidati.add(authHeader.substring(7));
+        }
+
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
-                if ("jwt".equals(cookie.getName())) {
-                    jwt = cookie.getValue();
+                if ("jwt".equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                    candidati.add(cookie.getValue());
                     break;
                 }
             }
         }
 
-        // 2. Fallback: se il cookie non c'è, controlla l'header Authorization: Bearer
-        if (jwt == null) {
-            final String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                jwt = authHeader.substring(7);
-            }
-        }
-
-        // Se non troviamo alcun token, proseguiamo la catena di filtri (richiesta anonima/unauthenticated)
-        if (jwt == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Estraggo l'username dal token individuato
-        final String username = jwtService.extractUsername(jwt);
-
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            for (String jwt : candidati) {
+                if (tryAuthenticate(jwt, request)) {
+                    break;
+                }
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean tryAuthenticate(String jwt, HttpServletRequest request) {
+        try {
+            final String username = jwtService.extractUsername(jwt);
+            if (username == null) {
+                return false;
+            }
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (!jwtService.isTokenValid(jwt, userDetails)) {
+                return false;
+            }
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+            );
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+            return true;
+        } catch (Exception ignored) {
+            // Token malformato/scaduto/utente assente: prova il candidato successivo
+            return false;
+        }
     }
 }

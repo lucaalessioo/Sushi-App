@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Lock, User, KeyRound, LogIn } from "lucide-react";
+import { salvaSessione, clearSession } from "./auth";
 
 export default function LoginStaff({ onLogin, titolo = "Area riservata al personale", ruoliConsentiti })
 {
@@ -47,14 +48,14 @@ export default function LoginStaff({ onLogin, titolo = "Area riservata al person
 
       if (ruoliConsentiti?.length && !ruoliConsentiti.includes(utente.ruolo))
       {
+        clearSession();
         setErrore("Account non autorizzato per questa area");
         return;
       }
 
       if (token)
       {
-        localStorage.setItem("token", token);
-        localStorage.setItem("utente", JSON.stringify(utente));
+        salvaSessione(token, utente);
       }
 
       onLogin(utente);

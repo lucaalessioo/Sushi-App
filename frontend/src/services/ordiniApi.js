@@ -1,6 +1,8 @@
 // src/services/ordiniApi.js
 
-const API_URL = "http://localhost:8080";
+import { getToken } from "../component/admin/auth";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const inviaOrdineBackend = async (tavoloId, carrelloItems) => {
   const payload = {
@@ -17,13 +19,16 @@ export const inviaOrdineBackend = async (tavoloId, carrelloItems) => {
     }),
   };
 
-  const token = localStorage.getItem("token");
+  const token = getToken();
+  if (!token) {
+    throw new Error("Sessione scaduta: effettua di nuovo il login del tablet.");
+  }
 
   const response = await fetch(`${API_URL}/api/v1/ordini`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
     credentials: "include",
     body: JSON.stringify(payload),
@@ -31,6 +36,12 @@ export const inviaOrdineBackend = async (tavoloId, carrelloItems) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    if (response.status === 403 || response.status === 401) {
+      throw new Error(
+        errorData.message ||
+          "Accesso negato: riloggia il tablet e riprova a inviare l'ordine."
+      );
+    }
     throw new Error(errorData.message || `Errore HTTP ${response.status}`);
   }
 
