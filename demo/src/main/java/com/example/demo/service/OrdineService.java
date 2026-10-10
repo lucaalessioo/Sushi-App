@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.DettaglioOrdineRequestDTO;
 import com.example.demo.dto.OrdineDTO;
 import com.example.demo.dto.OrdineRequestDTO;
+import com.example.demo.dto.StatoDettaglioUpdateDTO;
 import com.example.demo.dto.StatoOrdineUpdateDTO;
 import com.example.demo.mapper.DettaglioOrdineMapper;
 import com.example.demo.mapper.OrdineMapper;
@@ -27,6 +28,7 @@ public class OrdineService {
     private final ContoRepository contoRepository;
     private final PiattoRepository piattoRepository;
     private final CarrelloItemRepository carrelloItemRepository;
+    private final DettaglioOrdineRepository dettaglioOrdineRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     public OrdineDTO creaOrdine(OrdineRequestDTO dto) {
@@ -151,5 +153,47 @@ public class OrdineService {
         messagingTemplate.convertAndSend("/topic/ordini", risultato);
 
         return risultato;
+    }
+
+    public OrdineDTO aggiornaStatoDettaglio(Long ordineId, Long dettaglioId, StatoDettaglioUpdateDTO dto) {
+        Ordine ordine = ordineRepository.findById(ordineId)
+                .orElseThrow(() -> new RuntimeException("Ordine non trovato con id: " + ordineId));
+
+        DettaglioOrdine dettaglio = dettaglioOrdineRepository.findById(dettaglioId)
+                .orElseThrow(() -> new RuntimeException("Dettaglio non trovato con id: " + dettaglioId));
+
+        if (dettaglio.getOrdine() == null || !dettaglio.getOrdine().getId().equals(ordineId)) {
+            throw new RuntimeException("Il dettaglio non appartiene all'ordine " + ordineId);
+        }
+
+        dettaglio.setStato(dto.getStato());
+        dettaglioOrdineRepository.save(dettaglio);
+
+        // I piatti cancellati non contano più nel totale dell'ordine/conto
+        ricalcolaTotaleOrdine(ordine);
+        OrdineDTO risultato = OrdineMapper.toDTO(ordineRepository.save(ordine));
+        messagingTemplate.convertAndSend("/topic/ordini", risultato);
+        return risultato;
+    }
+
+    private void ricalcolaTotaleOrdine(Ordine ordine) {
+        BigDecimal totale = BigDecimal.ZERO;
+        for (DettaglioOrdine d : ordine.getDettagli()) {
+            if (d.getStato() == DettaglioOrdine.StatoDettaglio.CANCELLATO) {
+                continue;
+            }
+            totale = totale.add(
+                    d.getPrezzoUnitario().multiply(BigDecimal.valueOf(d.getQuantita()))
+            );
+        }
+        BigDecimal precedente = ordine.getTotale() != null ? ordine.getTotale() : BigDecimal.ZERO;
+        BigDecimal delta = totale.subtract(precedente);
+        ordine.setTotale(totale);
+        if (ordine.getConto() != null && delta.compareTo(BigDecimal.ZERO) != 0) {
+            BigDecimal contoTotale = ordine.getConto().getTotale() != null
+                    ? ordine.getConto().getTotale()
+                    : BigDecimal.ZERO;
+            ordine.getConto().setTotale(contoTotale.add(delta));
+        }
     }
 }

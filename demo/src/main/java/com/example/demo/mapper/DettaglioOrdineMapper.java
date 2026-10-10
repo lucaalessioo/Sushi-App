@@ -26,6 +26,9 @@ public class DettaglioOrdineMapper {
                 .quantita(dettaglio.getQuantita())
                 .prezzoUnitario(dettaglio.getPrezzoUnitario())
                 .subtotale(subtotale)
+                .stato(dettaglio.getStato() != null
+                        ? dettaglio.getStato()
+                        : DettaglioOrdine.StatoDettaglio.ATTIVO)
                 .build();
     }
 
@@ -47,6 +50,7 @@ public class DettaglioOrdineMapper {
                 .piatto(piatto)
                 .quantita(quantita)
                 .prezzoUnitario(piatto.getPrezzo())
+                .stato(DettaglioOrdine.StatoDettaglio.ATTIVO)
                 .build();
     }
 }

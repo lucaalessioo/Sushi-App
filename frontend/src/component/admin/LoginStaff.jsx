@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Lock, User, KeyRound, LogIn } from "lucide-react";
 
-export default function LoginStaff({ onLogin })
+export default function LoginStaff({ onLogin, titolo = "Area riservata al personale", ruoliConsentiti })
 {
   const [nome, setNome] = useState("");
   const [password, setPassword] = useState("");
@@ -45,6 +45,12 @@ export default function LoginStaff({ onLogin })
         numeroTavolo: data.numeroTavolo,
       };
 
+      if (ruoliConsentiti?.length && !ruoliConsentiti.includes(utente.ruolo))
+      {
+        setErrore("Account non autorizzato per questa area");
+        return;
+      }
+
       if (token)
       {
         localStorage.setItem("token", token);
@@ -74,7 +80,7 @@ export default function LoginStaff({ onLogin })
           <h1 className="text-2xl font-extrabold tracking-tighter text-white">
             Sushi <span className="text-amber-400">Zen</span>
           </h1>
-          <p className="text-xs text-neutral-500 mt-1">Area riservata al personale</p>
+          <p className="text-xs text-neutral-500 mt-1">{titolo}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4">

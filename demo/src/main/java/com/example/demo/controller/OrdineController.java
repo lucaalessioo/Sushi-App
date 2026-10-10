@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.OrdineDTO;
 import com.example.demo.dto.OrdineRequestDTO;
+import com.example.demo.dto.StatoDettaglioUpdateDTO;
 import com.example.demo.dto.StatoOrdineUpdateDTO;
 import com.example.demo.model.Ordine;
 import com.example.demo.service.OrdineService;
@@ -51,5 +52,14 @@ public class OrdineController {
             @Valid @RequestBody StatoOrdineUpdateDTO dto
     ) {
         return ResponseEntity.ok(ordineService.aggiornaStato(id, dto));
+    }
+
+    @PatchMapping("/{ordineId}/dettagli/{dettaglioId}/stato")
+    public ResponseEntity<OrdineDTO> aggiornaStatoDettaglio(
+            @PathVariable Long ordineId,
+            @PathVariable Long dettaglioId,
+            @Valid @RequestBody StatoDettaglioUpdateDTO dto
+    ) {
+        return ResponseEntity.ok(ordineService.aggiornaStatoDettaglio(ordineId, dettaglioId, dto));
     }
 }

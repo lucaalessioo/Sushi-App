@@ -59,6 +59,7 @@ public class Ordine {
         INVIATO,
         IN_PREPARAZIONE,
         SERVITO,
+        CANCELLATO,
         PAGATO
     }
 }

@@ -32,4 +32,16 @@ public class DettaglioOrdine {
 
     @Column(name = "prezzo_unitario", nullable = false, precision = 6, scale = 2)
     private BigDecimal prezzoUnitario;
+
+    /** ATTIVO = in coda cucina; CANCELLATO = annullato (rosso); INVIATO = tolto dalla comanda */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private StatoDettaglio stato = StatoDettaglio.ATTIVO;
+
+    public enum StatoDettaglio {
+        ATTIVO,
+        CANCELLATO,
+        INVIATO
+    }
 }

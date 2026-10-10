@@ -4,16 +4,34 @@ import LoginStaff from "../admin/LoginStaff";
 import { getUtente, clearSession } from "../admin/auth";
 import Cucina from "./Cucina";
 
-// App dedicata alla cucina, raggiungibile da /cucina.
-// Ha login e schermata propri, senza la sidebar dell'area admin
-// (cassa, gestione menu, piano sala).
+// Solo ROLE_ADMIN può entrare in cucina (un login tablet su / non basta).
+function sessioneCucinaValida()
+{
+  const u = getUtente();
+  return u?.ruolo === "ROLE_ADMIN" ? u : null;
+}
+
 export default function CucinaApp()
 {
-  const [utente, setUtente] = useState(() => getUtente());
+  const [utente, setUtente] = useState(() => sessioneCucinaValida());
 
   if (!utente)
   {
-    return <LoginStaff onLogin={(u) => setUtente(u)} />;
+    return (
+      <LoginStaff
+        titolo="Accesso cucina"
+        ruoliConsentiti={["ROLE_ADMIN"]}
+        onLogin={(u) =>
+        {
+          if (u?.ruolo !== "ROLE_ADMIN")
+          {
+            clearSession();
+            return;
+          }
+          setUtente(u);
+        }}
+      />
+    );
   }
 
   const logout = () =>
@@ -24,7 +42,6 @@ export default function CucinaApp()
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
-      {/* Barra superiore */}
       <header className="shrink-0 bg-neutral-900 border-b border-neutral-800 px-4 sm:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
@@ -50,7 +67,6 @@ export default function CucinaApp()
         </div>
       </header>
 
-      {/* Contenuto a tutta larghezza */}
       <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div className="max-w-screen-2xl mx-auto">
           <Cucina />
