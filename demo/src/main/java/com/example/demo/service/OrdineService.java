@@ -11,6 +11,7 @@ import com.example.demo.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public class OrdineService {
     private final ContoRepository contoRepository;
     private final PiattoRepository piattoRepository;
     private final CarrelloItemRepository carrelloItemRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public OrdineDTO creaOrdine(OrdineRequestDTO dto) {
         Utente tavolo = trovaTavolo(dto.getTavoloId());
@@ -38,7 +40,12 @@ public class OrdineService {
                     .orElseThrow(() -> new RuntimeException("Piatto non trovato con id: " + req.getPiattoId()));
             totale = totale.add(aggiungiDettaglio(ordine, piatto, req.getQuantita()));
         }
-        return OrdineMapper.toDTO(salvaSuConto(conto, ordine, totale));
+        OrdineDTO risultato = OrdineMapper.toDTO(salvaSuConto(conto, ordine, totale));
+        
+        // NOTIFICA WEBSOCKET A CUCINA E ADMIN
+        messagingTemplate.convertAndSend("/topic/ordini", risultato);
+
+        return risultato;
     }
 
     public OrdineDTO creaOrdineDaCarrello(Long tavoloId) {
@@ -59,7 +66,12 @@ public class OrdineService {
         Ordine salvato = salvaSuConto(conto, ordine, totale);
 
         carrelloItemRepository.deleteByTavoloId(tavoloId);
-        return OrdineMapper.toDTO(salvato);
+        OrdineDTO risultato = OrdineMapper.toDTO(salvato);
+
+        // NOTIFICA WEBSOCKET A CUCINA E ADMIN
+        messagingTemplate.convertAndSend("/topic/ordini", risultato);
+
+        return risultato;
     }
 
     // ---------- metodi di supporto ----------
@@ -133,6 +145,11 @@ public class OrdineService {
                 .orElseThrow(() -> new RuntimeException("Ordine non trovato con id: " + id));
 
         ordine.setStato(dto.getStato());
-        return OrdineMapper.toDTO(ordineRepository.save(ordine));
+        OrdineDTO risultato = OrdineMapper.toDTO(ordineRepository.save(ordine));
+
+        // NOTIFICA WEBSOCKET QUANDO LA CUCINA CAMBIA STATO
+        messagingTemplate.convertAndSend("/topic/ordini", risultato);
+
+        return risultato;
     }
 }
