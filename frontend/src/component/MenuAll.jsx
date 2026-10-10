@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import
-{
+import {
   Search,
   ShoppingBag,
   ShoppingCart,
@@ -10,97 +9,90 @@ import
   CheckCircle2
 } from 'lucide-react';
 
-// Le categorie restano locali; i piatti arrivano dal backend
 import { CATEGORIES } from '../data/mockMenu';
 import usePiatti from '../hooks/usePiatti';
+import { inviaOrdineBackend } from '../services/ordiniApi'; // 👈 Import del servizio API aggiornato
 
-// Import dei componenti
 import Card from './Card';
 import Carrello from './Carrello';
 
-/**
- * Props aggiuntive:
- * - orderType: 'all-you-can-eat' | 'alla-carta' -> proveniente dalla scelta in HomePage
- * - orderConfig: { peopleCount, mealType, pricePerPerson, tableTotal } -> presente solo
- *   se orderType === 'all-you-can-eat' (viene generato da HomePage.handleConfirmAllYouCanEat)
- *
- * I piatti vengono letti dal database in base a orderType:
- * - 'all-you-can-eat' -> GET /api/piatti/all-you-can-eat
- * - 'alla-carta'      -> GET /api/piatti/alla-carta
- */
-const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null }) =>
-{
+const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null, tavoloId = 40 }) => {
   const { dishes, loading, error, reload } = usePiatti(orderType);
 
   const [activeCategory, setActiveCategory] = useState('nuovi');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState({});
-  const [sentOrders, setSentOrders] = useState([]); // storico degli ordini già inviati in cucina
+  const [sentOrders, setSentOrders] = useState([]);
   const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const isAllYouCanEat = orderType === 'all-you-can-eat';
 
-  // Gestione aggiunta/rimozione piatti nel carrello
-  const updateQuantity = (dishId, delta) =>
-  {
-    setCart((prev) =>
-    {
-      const currentQty = prev[dishId] || 0;
+  // Gestione aggiunta/rimozione piatti nel carrello basata sul dbId o id numerico
+  const updateQuantity = (dishKey, delta) => {
+    setCart((prev) => {
+      const currentQty = prev[dishKey] || 0;
       const newQty = Math.max(0, currentQty + delta);
-      if (newQty === 0)
-      {
-        const { [dishId]: _, ...rest } = prev;
+      if (newQty === 0) {
+        const { [dishKey]: _, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [dishId]: newQty };
+      return { ...prev, [dishKey]: newQty };
     });
   };
 
   const totalItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
-  // Filtraggio piatti per categoria e ricerca
-  const filteredDishes = dishes.filter((dish) =>
-  {
+  const filteredDishes = dishes.filter((dish) => {
     const matchesCategory = activeCategory === 'nuovi' ? true : dish.category === activeCategory;
     const query = searchQuery.toLowerCase();
-    const matchesSearch = dish.name.toLowerCase().includes(query) ||
-      dish.id.toLowerCase().includes(query);
+    const dishIdStr = String(dish.dbId ?? dish.id).toLowerCase();
+    const matchesSearch = dish.name.toLowerCase().includes(query) || dishIdStr.includes(query);
     return matchesCategory && matchesSearch;
   });
 
-  // Invia i piatti selezionati in cucina (barra in basso). Azione indipendente
-  // dalla richiesta di pagamento: in All You Can Eat può essere ripetuta più
-  // volte durante il pasto. Ogni invio viene salvato nello storico ordini.
-  const handleSendToKitchen = () =>
-  {
-    if (totalItemsCount === 0) return;
+  // Invio ordine in cucina tramite API backend (Spring Boot + WebSocket/Cookie)
+  const handleSendToKitchen = async () => {
+    if (totalItemsCount === 0 || submitting) return;
 
-    const itemsSent = Object.entries(cart)
-      .map(([dishId, qty]) =>
-      {
-        const dish = dishes.find((d) => d.id === dishId);
-        return dish ? { id: dish.id, name: dish.name, image: dish.image, price: dish.price, qty } : null;
-      })
-      .filter(Boolean);
+    try {
+      setSubmitting(true);
 
-    setSentOrders((prev) => [
-      ...prev,
-      { id: `order-${Date.now()}`, sentAt: new Date(), items: itemsSent },
-    ]);
-    setCart({});
-    setIsCartModalOpen(false);
+      // Mima gli elementi del carrello mappandoli correttamente con il dbId numerico
+      const carrelloItems = Object.entries(cart).map(([dishKey, qty]) => {
+        const dish = dishes.find((d) => String(d.dbId ?? d.id) === String(dishKey));
+        return {
+          dbId: dish?.dbId ?? dish?.id,
+          id: dish?.id,
+          name: dish?.name,
+          image: dish?.image,
+          price: dish?.price,
+          qty: qty
+        };
+      }).filter(Boolean);
+
+      // Chiamata al backend per registrare l'ordine e propagarlo via WebSocket alla cucina
+      await inviaOrdineBackend(tavoloId, carrelloItems);
+
+      setSentOrders((prev) => [
+        ...prev,
+        { id: `order-${Date.now()}`, sentAt: new Date(), items: carrelloItems },
+      ]);
+      setCart({});
+      setIsCartModalOpen(false);
+    } catch (err) {
+      console.error("Errore durante l'invio dell'ordine in cucina:", err);
+      alert(err.message || "Errore di connessione durante l'invio dell'ordine.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Richiesta di pagamento ("Richiedi il conto" / "Paga in Cassa") dal Carrello.
-  // Non tocca il carrello né manda nulla in cucina: il messaggio di conferma
-  // viene già mostrato internamente dal componente Carrello.
-  const handlePaymentRequest = (type) =>
-  {
-    console.log(`Richiesta pagamento ricevuta per il tavolo: ${type === 'conto' ? 'conto' : 'paga in cassa'}`);
+  const handlePaymentRequest = (type) => {
+    console.log(`Richiesta pagamento ricevuta per il tavolo: ${type}`);
   };
 
-  // Etichette dinamiche di intestazione in base al tipo di menu selezionato in Home
   const headerBadgeLabel = isAllYouCanEat ? 'ALL YOU CAN EAT' : 'ALLA CARTA';
   const headerTitle = isAllYouCanEat
     ? `Menu ${orderConfig?.mealType === 'cena' ? 'Cena' : 'Pranzo'}`
@@ -108,8 +100,6 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
 
   return (
     <div className="h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans overflow-hidden">
-
-      {/* TopBar Header */}
       <header className="shrink-0 z-30 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {onBack && (
@@ -120,31 +110,27 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
-
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
                 {headerBadgeLabel}
               </span>
-              <span className="text-xs text-neutral-400 font-mono">Tavolo 40</span>
+              <span className="text-xs text-neutral-400 font-mono">Tavolo {tavoloId}</span>
               {isAllYouCanEat && orderConfig?.tableTotal != null && (
                 <span className="text-xs text-neutral-400 font-mono">
                   · €{Number(orderConfig.tableTotal).toFixed(2)} fisso
                 </span>
               )}
             </div>
-
             <h1 className="text-xl font-bold tracking-tight mt-0.5">{headerTitle}</h1>
           </div>
         </div>
 
-        {/* Ricerca e Valutazione */}
         <div className="flex items-center gap-3">
           {onOpenReviews && (
             <button
               onClick={onOpenReviews}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 border border-amber-400/40 text-amber-400 hover:bg-amber-400/10 transition-colors text-xs font-semibold cursor-pointer shadow-lg shadow-amber-950/20"
-              title="Lascia una recensione"
             >
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               <span className="hidden sm:inline">Valuta</span>
@@ -164,14 +150,10 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         </div>
       </header>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-
-        {/* Sidebar Categorie */}
         <aside className="w-64 border-r border-neutral-800 p-4 space-y-2 shrink-0 hidden md:block bg-neutral-950/50 overflow-y-auto">
           <p className="text-xs font-mono text-neutral-500 uppercase tracking-wider px-3 mb-3">Categorie</p>
-          {CATEGORIES.map((cat) =>
-          {
+          {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
             return (
@@ -190,15 +172,10 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
           })}
         </aside>
 
-        {/* Area Principale Scrollabile */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
           <div className="max-w-7xl mx-auto space-y-8">
-
-            {/* Griglia Piatti: caricamento / errore / vuoto / elenco */}
             {loading ? (
-              <p className="text-center text-sm text-neutral-400 py-16">
-                Caricamento del menu in corso...
-              </p>
+              <p className="text-center text-sm text-neutral-400 py-16">Caricamento del menu in corso...</p>
             ) : error ? (
               <div className="text-center py-16 space-y-4">
                 <p className="text-sm text-red-400">{error}</p>
@@ -211,16 +188,19 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
               </div>
             ) : filteredDishes.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredDishes.map((dish) => (
-                  <Card
-                    key={dish.dbId ?? dish.id}
-                    dish={dish}
-                    qty={cart[dish.id] || 0}
-                    onIncrement={() => updateQuantity(dish.id, 1)}
-                    onDecrement={() => updateQuantity(dish.id, -1)}
-                    orderType={orderType}
-                  />
-                ))}
+                {filteredDishes.map((dish) => {
+                  const dishKey = dish.dbId ?? dish.id;
+                  return (
+                    <Card
+                      key={dishKey}
+                      dish={dish}
+                      qty={cart[dishKey] || 0}
+                      onIncrement={() => updateQuantity(dishKey, 1)}
+                      onDecrement={() => updateQuantity(dishKey, -1)}
+                      orderType={orderType}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <p className="text-center text-sm text-neutral-500 py-16">
@@ -228,12 +208,9 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
               </p>
             )}
 
-            {/* BARRA DI CONFERMA: Centrata rispetto alla sola griglia max-w-7xl */}
             {totalItemsCount > 0 && (
               <div className="sticky bottom-4 z-40 w-full pt-4">
                 <div className="max-w-xl mx-auto bg-neutral-900/95 backdrop-blur-xl border border-amber-400/50 p-3 sm:p-4 rounded-3xl shadow-2xl shadow-neutral-950 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-
-                  {/* Indicatore Conteggio */}
                   <div
                     className="flex items-center gap-3 pl-1 cursor-pointer w-full sm:w-auto justify-between sm:justify-start"
                     onClick={() => setIsCartModalOpen(true)}
@@ -252,7 +229,6 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
                     </div>
                   </div>
 
-                  {/* Tasti Azione */}
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <button
                       onClick={() => setIsCartModalOpen(true)}
@@ -263,22 +239,20 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
 
                     <button
                       onClick={handleSendToKitchen}
-                      className="flex-1 sm:flex-none bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20 shrink-0"
+                      disabled={submitting}
+                      className="flex-1 sm:flex-none bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20 shrink-0 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Invia Ordine</span>
+                      <span>{submitting ? 'Invio...' : 'Invia Ordine'}</span>
                     </button>
                   </div>
-
                 </div>
               </div>
             )}
-
           </div>
         </main>
       </div>
 
-      {/* Widget Ripiegabile Basso a Destra */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
         <div
           className={`bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl shadow-neutral-950 p-3 flex flex-col items-center gap-3 transition-all duration-300 origin-right
@@ -301,7 +275,6 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
             <button
               onClick={onOpenReviews}
               className="p-2.5 bg-neutral-800 border border-neutral-700 text-amber-400 rounded-xl hover:bg-neutral-700 transition-colors cursor-pointer"
-              aria-label="Lascia una recensione"
             >
               <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
             </button>
@@ -311,15 +284,11 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         <button
           onClick={() => setIsCartPanelOpen((prev) => !prev)}
           className="flex items-center justify-center w-12 h-12 shrink-0 bg-neutral-900 border border-neutral-800 rounded-full text-amber-400 hover:bg-neutral-800 transition-colors cursor-pointer shadow-lg shadow-neutral-950"
-          aria-label={isCartPanelOpen ? 'Chiudi pannello' : 'Apri pannello'}
         >
-          <ChevronLeft
-            className={`w-5 h-5 transition-transform duration-300 ${isCartPanelOpen ? 'rotate-180' : ''}`}
-          />
+          <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${isCartPanelOpen ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
-      {/* Modale Carrello Centrato */}
       <Carrello
         isOpen={isCartModalOpen}
         onClose={() => setIsCartModalOpen(false)}
@@ -334,7 +303,6 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         peopleCount={orderConfig?.peopleCount}
         orderHistory={sentOrders}
       />
-
     </div>
   );
 };

@@ -40,20 +40,19 @@ public class SecurityConfig {
                         // Permette le richieste OPTIONS preflight dei browser
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Endpoints pubblici per autenticazione (login / register)
+                        // Endpoints pubblici per autenticazione (login / register / logout)
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
-                        // Foto dei piatti: devono essere leggibili da <img>, che non manda il token
+                        // Foto dei piatti: devono essere leggibili da <img>
                         .requestMatchers("/uploads/**").permitAll()
 
-                        // Elenco completo (anche non disponibili): solo ADMIN.
-                        // Va messo PRIMA della regola pubblica, altrimenti viene coperto da quella.
+                        // Elenco completo (anche non disponibili): solo ADMIN
                         .requestMatchers(HttpMethod.GET, "/api/piatti/admin").hasAuthority("ROLE_ADMIN")
 
                         // Consultazione piatti visibile a tutti
                         .requestMatchers(HttpMethod.GET, "/api/piatti/**").permitAll()
 
-                        // Gestione piatti riservata all'ADMIN (include POST /api/piatti/immagine)
+                        // Gestione piatti riservata all'ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
@@ -63,16 +62,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/tavoli", "/api/tavoli/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
-                        // Rotte ordini e carrello per TABLET e ADMIN
-                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello",
-                                "/api/v1/carrello/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
+                        // Rotte ordini e carrello per TABLET, ADMIN, CUCINA e CASSA
+                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET", "ROLE_CUCINA", "ROLE_CASSA")
+
+                        // Web Socket
+                        // .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
+                        .permitAll()
 
                         // Qualsiasi altra richiesta necessita di autenticazione
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Richiama direttamente il metodo @Bean della classe senza passarlo come
-                // parametro
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -81,12 +82,8 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // Passa userDetailsService direttamente nel costruttore
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-
-        // Imposta il passwordEncoder con il setter
         authProvider.setPasswordEncoder(passwordEncoder());
-
         return authProvider;
     }
 
@@ -103,11 +100,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        // PATCH serve per il cambio di disponibilità dei piatti
+        
+        // FONDAMENTALE: Origini esplicite per permettere l'invio dei Cookie HTTP-Only con allowCredentials(true)
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://192.168.*.*:5173"
+        ));
+        
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(true); // Permette l'invio dei Cookie HTTP-Only
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

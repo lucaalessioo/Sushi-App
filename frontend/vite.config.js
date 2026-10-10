@@ -8,4 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  define: {
+    // Mappa 'global' su 'window' per rendere compatibile SockJS con Vite
+    global: 'window',
+  },
 })
