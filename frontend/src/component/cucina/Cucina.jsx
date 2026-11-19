@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ChefHat, Clock, Sparkles, Printer, Send, XCircle, RefreshCw } from "lucide-react";
 import { connettiWebSocket } from "../../services/websocket";
+import { ordineInCodaGenerale } from "../../utils/ordineCoda";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -8,7 +9,7 @@ const SOGLIA_GIALLO = 10;
 const SOGLIA_ROSSO = 15;
 
 const FILTRI = [
-  { id: "attivi", label: "Attivi", match: (o) => o.stato === "INVIATO" || o.stato === "IN_PREPARAZIONE" },
+  { id: "attivi", label: "Attivi", match: (o) => ordineInCodaGenerale(o) },
   { id: "completati", label: "Completati", match: (o) => o.stato === "SERVITO" },
   { id: "cancellati", label: "Cancellati", match: (o) => o.stato === "CANCELLATO" },
   { id: "tutti", label: "Tutti", match: () => true },
@@ -116,6 +117,7 @@ export default function Cucina()
         {
           const res = await fetch(`${API_BASE}/api/v1/ordini/stato/${stato}`, {
             headers: authHeaders(),
+            credentials: "include",
           });
           return res.ok ? res.json() : [];
         })
@@ -248,7 +250,7 @@ export default function Cucina()
           {
             const urg = URGENZA[livelloUrgenza(o, now)];
             const chiuso = STATI_CHIUSI.includes(o.stato);
-            const piattiVisibili = (o.dettagli || []).filter((d) => d.stato !== "INVIATO");
+            const piattiVisibili = o.dettagli || [];
 
             return (
               <div
@@ -275,12 +277,13 @@ export default function Cucina()
 
                 <ul className="space-y-1.5 my-4 flex-1">
                   {piattiVisibili.length === 0 && (
-                    <li className="text-xs text-neutral-500 text-center py-4">Nessun piatto in coda</li>
+                    <li className="text-xs text-neutral-500 text-center py-4">Nessun piatto nell&apos;ordine</li>
                   )}
                   {piattiVisibili.map((d) =>
                   {
                     const key = `${o.id}-${d.id}`;
                     const cancellato = d.stato === "CANCELLATO";
+                    const inviato = d.stato === "INVIATO";
                     const aperto = dettaglioAperto === key;
 
                     return (
@@ -291,20 +294,25 @@ export default function Cucina()
                           onClick={() => setDettaglioAperto(aperto ? null : key)}
                           className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm border transition-colors text-left cursor-pointer disabled:cursor-default ${cancellato
                             ? "bg-red-950/50 border-red-600/60 text-red-300"
+                            : inviato
+                              ? "bg-green-950/30 border-green-700/40 text-green-200/90"
                             : aperto
                               ? "bg-neutral-800 border-amber-400/50 text-neutral-100"
                               : "bg-neutral-900 border-neutral-800 text-neutral-200 hover:border-neutral-600"
                             }`}
                         >
-                          <span className={cancellato ? "line-through decoration-red-400/80" : ""}>
+                          <span className={cancellato ? "line-through decoration-red-400/80" : inviato ? "opacity-80" : ""}>
                             {nomePiatto(d)}
+                            {inviato && !cancellato && (
+                              <span className="ml-1.5 text-[10px] uppercase text-green-400 font-mono">inviato</span>
+                            )}
                           </span>
-                          <span className={`font-mono font-bold ${cancellato ? "text-red-400" : "text-amber-400"}`}>
+                          <span className={`font-mono font-bold ${cancellato ? "text-red-400" : inviato ? "text-green-400" : "text-amber-400"}`}>
                             x{d.quantita}
                           </span>
                         </button>
 
-                        {aperto && !chiuso && (
+                        {aperto && !chiuso && !inviato && (
                           <div className="absolute z-10 left-0 right-0 mt-1 flex gap-1.5 p-1.5 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl">
                             <button
                               type="button"

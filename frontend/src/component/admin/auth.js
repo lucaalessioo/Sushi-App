@@ -7,6 +7,17 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 
+/** Bearer solo se il JWT non è scaduto (evita 403 con token vecchio + cookie valido). */
+export function getBearerHeaderIfValid()
+{
+  const token = getToken();
+  if (!token || tokenScaduto(token))
+  {
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
 export function salvaSessione(token, utente)
 {
   localStorage.setItem(TOKEN_KEY, token);
@@ -25,6 +36,12 @@ export function clearSession()
 }
 
 // Legge la scadenza ("exp") dal payload del JWT, senza verificare la firma (lo fa il backend)
+export function tokenScadutoFromToken(token)
+{
+  if (!token) return true;
+  return tokenScaduto(token);
+}
+
 function tokenScaduto(token)
 {
   try
@@ -58,4 +75,11 @@ export function getUtente()
   {
     return null;
   }
+}
+
+/** Sessione valida solo per area admin/cassa (non tablet tavolo). */
+export function getUtenteAdmin()
+{
+  const u = getUtente();
+  return u?.ruolo === "ROLE_ADMIN" ? u : null;
 }

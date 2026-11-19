@@ -35,14 +35,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Bearer ha priorità sul cookie: localStorage è aggiornato al login,
-        // mentre un cookie jwt vecchio/scaduto (maxAge 7gg vs JWT 24h) può restare.
+        // Cookie HttpOnly (sempre aggiornato al login) prima del Bearer in header:
+        // un JWT scaduto in localStorage non deve impedire l’uso del cookie valido.
         List<String> candidati = new ArrayList<>(2);
-
-        final String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            candidati.add(authHeader.substring(7));
-        }
 
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -50,6 +45,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     candidati.add(cookie.getValue());
                     break;
                 }
+            }
+        }
+
+        final String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String bearer = authHeader.substring(7).trim();
+            if (!bearer.isEmpty() && !candidati.contains(bearer)) {
+                candidati.add(bearer);
             }
         }
 

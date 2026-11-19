@@ -13,6 +13,36 @@ function App()
   const [selectedMenuType, setSelectedMenuType] = useState('');
   const [orderConfig, setOrderConfig] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [piattiOrdinatiSessione, setPiattiOrdinatiSessione] = useState([]);
+
+  const registraPiattiOrdinati = (items) =>
+  {
+    if (!items?.length) return;
+    setPiattiOrdinatiSessione((prev) =>
+    {
+      const mappa = new Map(prev.map((p) => [String(p.id), { ...p }]));
+      items.forEach((item) =>
+      {
+        const key = String(item.dbId ?? item.id);
+        const prevItem = mappa.get(key);
+        if (prevItem)
+        {
+          mappa.set(key, { ...prevItem, qty: (prevItem.qty || 0) + (item.qty || 1) });
+        }
+        else
+        {
+          mappa.set(key, {
+            id: key,
+            piattoId: item.dbId ?? item.id,
+            name: item.name,
+            image: item.image,
+            qty: item.qty || 1,
+          });
+        }
+      });
+      return [...mappa.values()];
+    });
+  };
   const [tabletSession, setTabletSession] = useState(() =>
   {
     const u = getUtente();
@@ -84,6 +114,7 @@ function App()
           orderConfig={orderConfig}
           tavoloId={tavoloId}
           numeroTavolo={numeroTavolo}
+          onOrderSent={registraPiattiOrdinati}
         />
       )}
 
@@ -93,12 +124,16 @@ function App()
           onOpenReviews={() => setIsReviewOpen(true)}
           tavoloId={tavoloId}
           tableNumber={numeroTavolo}
+          onOrderSent={registraPiattiOrdinati}
         />
       )}
 
       <Recensione
         isOpen={isReviewOpen}
         onClose={() => setIsReviewOpen(false)}
+        tavoloId={tavoloId}
+        numeroTavolo={numeroTavolo}
+        piattiSessione={piattiOrdinatiSessione}
       />
     </>
   );

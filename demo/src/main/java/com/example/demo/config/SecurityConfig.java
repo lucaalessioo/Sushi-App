@@ -17,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -52,18 +54,26 @@ public class SecurityConfig {
                         // Consultazione piatti visibile a tutti
                         .requestMatchers(HttpMethod.GET, "/api/piatti/**").permitAll()
 
+                        // Recensioni: lettura pubblica, invio da tablet/admin
+                        .requestMatchers(HttpMethod.GET, "/api/v1/recensioni", "/api/v1/recensioni/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/recensioni").hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
+
                         // Gestione piatti riservata all'ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/piatti/**").hasAuthority("ROLE_ADMIN")
 
-                        // Gestione tavoli: ADMIN e TABLET
-                        .requestMatchers("/api/tavoli", "/api/tavoli/**")
+                        // Lettura pianta tavoli: admin e tablet
+                        .requestMatchers(HttpMethod.GET, "/api/tavoli", "/api/tavoli/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
+                        // Editor pianta (crea/sposta/modifica/elimina): solo admin
+                        .requestMatchers("/api/tavoli", "/api/tavoli/**")
+                        .hasAuthority("ROLE_ADMIN")
 
-                        // Rotte ordini e carrello: richiedono JWT (tablet / admin)
-                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**")
+                        // Rotte ordini, carrello e conti: richiedono JWT (tablet / admin)
+                        .requestMatchers("/api/v1/ordini", "/api/v1/ordini/**", "/api/v1/carrello", "/api/v1/carrello/**",
+                                "/api/v1/conti", "/api/v1/conti/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_TABLET")
 
                         // SockJS / WebSocket (notifiche cucina)
@@ -71,6 +81,17 @@ public class SecurityConfig {
 
                         // Qualsiasi altra richiesta necessita di autenticazione
                         .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, authException) -> {
+                            res.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.getWriter().write("{\"message\":\"Autenticazione richiesta (effettua il login).\"}");
+                        })
+                        .accessDeniedHandler((req, res, denied) -> {
+                            res.setStatus(HttpStatus.FORBIDDEN.value());
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.getWriter().write("{\"message\":\"Non autorizzato per questa operazione.\"}");
+                        }))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

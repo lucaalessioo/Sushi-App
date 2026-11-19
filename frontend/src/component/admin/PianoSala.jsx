@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Pencil, Check, Plus, Trash2, X, Lock, LayoutGrid } from "lucide-react";
+import { adminAuthHeaders, loadTavoli } from "../../services/adminApi";
 
-const API_URL = "http://localhost:8080/api/tavoli";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const API_URL = `${API_BASE}/api/tavoli`;
 
 const STATO_LABEL = {
   LIBERO: "Libero",
@@ -26,14 +28,15 @@ const STATO_DOT = {
 
 const CICLO_TAP = ["LIBERO", "OCCUPATO", "IN_PAGAMENTO"];
 
-// Helper per costruire gli header con il token JWT
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token"); // Assicurati che la chiave combaci con dove salvi il JWT al login
-  return {
-    "Content-Type": "application/json",
-    Authorization: token ? `Bearer ${token}` : "",
-  };
-};
+const getAuthHeaders = () => adminAuthHeaders({ "Content-Type": "application/json" });
+
+function adminFetch(url, options = {}) {
+  return fetch(url, {
+    credentials: "include",
+    ...options,
+    headers: adminAuthHeaders(options.headers ?? { "Content-Type": "application/json" }),
+  });
+}
 
 // Se la risposta non è ok, legge il body del backend per avere un messaggio utile
 const throwIfNotOk = async (res, fallbackMessage) => {
@@ -50,6 +53,7 @@ const throwIfNotOk = async (res, fallbackMessage) => {
 export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [erroreCaricamento, setErroreCaricamento] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [modal, setModal] = useState(null);
   const floorRef = useRef(null);
@@ -58,19 +62,23 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   // 1. Caricamento iniziale tavoli
   useEffect(() => {
     let isMounted = true;
-    async function loadTavoli() {
+    async function loadTavoliFromApi() {
       try {
-        const response = await fetch(API_URL, { headers: getAuthHeaders() });
-        await throwIfNotOk(response, "Errore nel recupero tavoli");
-        const data = await response.json();
-        if (isMounted) setTables(data);
+        const data = await loadTavoli();
+        if (isMounted) {
+          setTables(data);
+          setErroreCaricamento("");
+        }
       } catch (err) {
         console.error("Errore di caricamento:", err);
+        if (isMounted) {
+          setErroreCaricamento("Impossibile caricare i tavoli dal server. Riloggati in area admin.");
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
     }
-    loadTavoli();
+    loadTavoliFromApi();
     return () => {
       isMounted = false;
     };
@@ -101,9 +109,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     const nuovoStato = CICLO_TAP[(idx + 1) % CICLO_TAP.length];
 
     try {
-      const res = await fetch(`${API_URL}/${id}/stato`, {
+      const res = await adminFetch(`${API_URL}/${id}/stato`, {
         method: "PATCH",
-        headers: getAuthHeaders(),
         body: JSON.stringify({ stato: nuovoStato }),
       });
       await throwIfNotOk(res, "Errore durante l'aggiornamento dello stato");
@@ -117,7 +124,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   };
 
   const handleFloorPointerDown = (e) => {
-    if (!editMode || e.target !== floorRef.current) return;
+    if (!editMode) return;
+    if (e.target.closest("[data-table]")) return;
     const rect = floorRef.current.getBoundingClientRect();
     let x = ((e.clientX - rect.left) / rect.width) * 100;
     let y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -168,9 +176,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
 
     if (info.moved) {
       try {
-        const res = await fetch(`${API_URL}/${table.id}/posizione`, {
+        const res = await adminFetch(`${API_URL}/${table.id}/posizione`, {
           method: "PATCH",
-          headers: getAuthHeaders(),
           body: JSON.stringify({ x: info.x, y: info.y }),
         });
         await throwIfNotOk(res, "Errore salvataggio posizione");
@@ -205,9 +212,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     };
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await adminFetch(API_URL, {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify(nuovoTavoloDTO),
       });
       await throwIfNotOk(res, "Errore salvataggio tavolo");
@@ -245,9 +251,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     };
 
     try {
-      const res = await fetch(`${API_URL}/${id}`, {
+      const res = await adminFetch(`${API_URL}/${id}`, {
         method: "PUT",
-        headers: getAuthHeaders(),
         body: JSON.stringify(tavoloModificatoDTO),
       });
       await throwIfNotOk(res, "Errore aggiornamento tavolo");
@@ -264,9 +269,8 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
   // 6. Cancellazione tavolo
   const deleteTable = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/${id}`, {
+      const res = await adminFetch(`${API_URL}/${id}`, {
         method: "DELETE",
-        headers: getAuthHeaders(),
       });
       await throwIfNotOk(res, "Errore eliminazione tavolo");
 
@@ -283,9 +287,12 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
     return (
       <div className="bg-neutral-900 border border-neutral-800 text-neutral-100 rounded-3xl p-8 min-h-[300px] flex flex-col items-center justify-center text-center gap-2">
         <Lock size={28} className="text-neutral-600 mb-1" />
-        <p className="font-bold m-0">Sezione riservata al personale</p>
-        <p className="text-sm text-neutral-400 m-0">
-          Il piano sala è visibile solo dal lato ristorante, non dai tablet dei tavoli.
+        <p className="font-bold m-0">Editor pianta non disponibile</p>
+        <p className="text-sm text-neutral-400 m-0 max-w-md">
+          La modifica della pianta richiede l&apos;account <strong className="text-neutral-300">admin</strong>
+          {ruolo === "ROLE_TABLET"
+            ? ". Sei connesso come tablet tavolo: esci, apri /admin e accedi con le credenziali di cassa."
+            : ". Esci e rientra con un utente amministratore."}
         </p>
       </div>
     );
@@ -319,6 +326,12 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
           {editMode ? "Fine modifica" : "Modifica pianta"}
         </button>
       </div>
+
+      {erroreCaricamento && (
+        <p className="text-sm text-red-400 bg-red-950/30 border border-red-800 rounded-xl px-4 py-2 mb-3">
+          {erroreCaricamento}
+        </p>
+      )}
 
       <div className="flex gap-4 flex-wrap text-xs text-neutral-400 mb-3">
         {Object.entries(STATO_LABEL).map(([key, label]) => (
@@ -371,6 +384,7 @@ export default function PianoSala({ ruolo = "ROLE_ADMIN" }) {
         {tables.map((t) => (
           <div
             key={t.id}
+            data-table
             onPointerDown={(e) => handleTablePointerDown(e, t)}
             onPointerMove={(e) => handleTablePointerMove(e, t)}
             onPointerUp={(e) => handleTablePointerUp(e, t)}

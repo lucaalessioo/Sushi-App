@@ -29,6 +29,22 @@ public class Conto {
     @Builder.Default
     private BigDecimal totale = BigDecimal.ZERO;
 
+    /** ALLA_CARTA = somma piatti; ALL_YOU_CAN_EAT = prezzo fisso a tavolo */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_menu", length = 30)
+    private TipoMenu tipoMenu;
+
+    private Integer numeroPersone;
+
+    @Column(name = "tipo_pasto", length = 20)
+    private String tipoPasto;
+
+    @Column(name = "prezzo_per_persona", precision = 8, scale = 2)
+    private BigDecimal prezzoPerPersona;
+
+    @Column(name = "totale_fisso", precision = 8, scale = 2)
+    private BigDecimal totaleFisso;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
@@ -39,6 +55,14 @@ public class Conto {
 
     @Column(name = "data_chiusura")
     private LocalDateTime dataChiusura;
+
+    /**
+     * null = tavolo ancora a tavola (rosso in cassa);
+     * RICHIESTA_CONTO = cameriere (blu); RICHIESTA_CASSA = paga in cassa (verde).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "richiesta_pagamento", length = 30)
+    private RichiestaPagamento richiestaPagamento;
 
     @OneToMany(mappedBy = "conto", cascade = CascadeType.ALL)
     @Builder.Default
@@ -54,10 +78,22 @@ public class Conto {
     public void aggiungiOrdine(Ordine ordine) {
         ordine.setConto(this);
         this.ordini.add(ordine);
-        this.totale = this.totale.add(ordine.getTotale());
+        if (tipoMenu != TipoMenu.ALL_YOU_CAN_EAT) {
+            this.totale = this.totale.add(ordine.getTotale() != null ? ordine.getTotale() : BigDecimal.ZERO);
+        }
+    }
+
+    public enum TipoMenu {
+        ALLA_CARTA,
+        ALL_YOU_CAN_EAT
     }
 
     public enum StatoConto {
         APERTO, PAGATO, IN_PAGAMENTO
+    }
+
+    public enum RichiestaPagamento {
+        RICHIESTA_CONTO,
+        RICHIESTA_CASSA
     }
 }

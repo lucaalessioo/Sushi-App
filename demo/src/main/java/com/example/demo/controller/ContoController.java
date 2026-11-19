@@ -6,10 +6,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.ContoDTO;
+import com.example.demo.dto.RichiestaPagamentoDTO;
+
+import jakarta.validation.Valid;
 import com.example.demo.service.ContoService;
 
 import lombok.RequiredArgsConstructor;
@@ -29,14 +33,22 @@ public class ContoController {
 
     // Tablet: "Termina e paga"
     @PostMapping("/tavolo/{tavoloId}/richiedi-pagamento")
-    public ResponseEntity<ContoDTO> richiediPagamento(@PathVariable Long tavoloId) {
-        return ResponseEntity.ok(contoService.richiediPagamento(tavoloId));
+    public ResponseEntity<ContoDTO> richiediPagamento(
+            @PathVariable Long tavoloId,
+            @Valid @RequestBody RichiestaPagamentoDTO body) {
+        return ResponseEntity.ok(contoService.richiediPagamento(tavoloId, body.getModalita()));
     }
 
     // Cassa (ADMIN): tavoli che stanno per pagare
     @GetMapping("/in-pagamento")
     public ResponseEntity<List<ContoDTO>> getContiInPagamento() {
         return ResponseEntity.ok(contoService.getContiInPagamento());
+    }
+
+    // Cassa (ADMIN): tutti i conti aperti (non pagati) con relativi ordini
+    @GetMapping("/attivi")
+    public ResponseEntity<List<ContoDTO>> getContiAttivi() {
+        return ResponseEntity.ok(contoService.getContiAttivi());
     }
 
     // Cassa (ADMIN): incasso confermato

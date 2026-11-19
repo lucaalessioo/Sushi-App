@@ -5,17 +5,30 @@ import PianoSala from "./PianoSala";
 import CodaOrdini from "./CodaOrdini";
 import GestioneMenu from "./GestioneMenu";
 import DettaglioOrdineTavolo from "./DettaglioOrdineTavolo";
-import { getUtente, clearSession } from "./auth";
+import { getUtenteAdmin, clearSession } from "./auth";
 
 export default function AdminApp()
 {
-  // Ripristina la sessione dopo un ricarico (se il token non è scaduto)
-  const [utente, setUtente] = useState(() => getUtente());
+  const [utente, setUtente] = useState(() => getUtenteAdmin());
   const [pagina, setPagina] = useState("piano-sala");
 
   if (!utente)
   {
-    return <LoginStaff onLogin={(u) => setUtente(u)} />;
+    return (
+      <LoginStaff
+        titolo="Area amministrazione e cassa"
+        ruoliConsentiti={["ROLE_ADMIN"]}
+        onLogin={(u) =>
+        {
+          if (u?.ruolo !== "ROLE_ADMIN")
+          {
+            clearSession();
+            return;
+          }
+          setUtente(u);
+        }}
+      />
+    );
   }
 
   const logout = () =>

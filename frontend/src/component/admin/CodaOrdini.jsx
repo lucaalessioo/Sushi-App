@@ -1,96 +1,80 @@
-import { useState, useEffect, useCallback } from "react";
-import { ChefHat, Clock, ArrowRight, Sparkles } from "lucide-react";
-
-const STORAGE_KEY = "admin:ordini";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ChefHat, Clock, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
+import { connettiWebSocket } from "../../services/websocket";
+import { aggiornaStatoOrdine, loadOrdiniAttivi } from "../../services/adminApi";
+import { ordineInCodaGenerale } from "../../utils/ordineCoda";
 
 const COLONNE = [
-  { stato: "IN_INVIATO", label: "Nuovi ordini", accent: "border-amber-400/60", badge: "bg-amber-400/10 text-amber-400 border-amber-400/30" },
+  { stato: "INVIATO", label: "Nuovi ordini", accent: "border-amber-400/60", badge: "bg-amber-400/10 text-amber-400 border-amber-400/30" },
   { stato: "IN_PREPARAZIONE", label: "In preparazione", accent: "border-blue-500/50", badge: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
   { stato: "SERVITO", label: "Serviti", accent: "border-green-500/50", badge: "bg-green-500/10 text-green-400 border-green-500/30" },
 ];
 
-const PROSSIMO_STATO = { IN_INVIATO: "IN_PREPARAZIONE", IN_PREPARAZIONE: "SERVITO" };
-const AZIONE_LABEL = { IN_INVIATO: "Inizia preparazione", IN_PREPARAZIONE: "Segna come servito" };
+const PROSSIMO_STATO = { INVIATO: "IN_PREPARAZIONE", IN_PREPARAZIONE: "SERVITO" };
+const AZIONE_LABEL = { INVIATO: "Inizia preparazione", IN_PREPARAZIONE: "Segna come servito" };
 
-function minutiFa(dataOra, now)
-{
+function minutiFa(dataOra, now) {
   const diff = Math.max(0, Math.floor((now - new Date(dataOra).getTime()) / 60000));
   if (diff < 1) return "adesso";
   return `${diff} min fa`;
 }
 
-export default function CodaOrdini()
-{
+function nomePiatto(d) {
+  return d.piatto?.nome || `Piatto #${d.piattoId ?? d.id}`;
+}
+
+export default function CodaOrdini() {
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  useEffect(() =>
-  {
+  useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(tick);
   }, []);
 
-  useEffect(() =>
-  {
-    let mounted = true;
-    (async () =>
-    {
-      try
-      {
-        const res = await window.storage.get(STORAGE_KEY, true);
-        if (mounted) setOrdini(res && res.value ? JSON.parse(res.value) : []);
-      } catch (e)
-      {
-        if (mounted) setOrdini([]);
-      } finally
-      {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
+  const upsertOrdine = useCallback((ordine) => {
+    setOrdini((prev) => {
+      const esiste = prev.some((o) => o.id === ordine.id);
+      if (esiste) return prev.map((o) => (o.id === ordine.id ? ordine : o));
+      return [ordine, ...prev];
+    });
   }, []);
 
-  const persist = useCallback(async (next) =>
-  {
-    try
-    {
-      await window.storage.set(STORAGE_KEY, JSON.stringify(next), true);
-    } catch (e)
-    {
-      console.error("Errore salvataggio ordini", e);
+  const caricaOrdini = useCallback(async () => {
+    try {
+      const data = await loadOrdiniAttivi();
+      setOrdini(data);
+    } catch (e) {
+      console.error("Errore caricamento ordini admin", e);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const avanzaStato = (id) =>
-  {
-    setOrdini((prev) =>
-    {
-      const next = prev.map((o) => o.id === id ? { ...o, stato: PROSSIMO_STATO[o.stato] || o.stato } : o);
-      persist(next);
-      return next;
-    });
+  useEffect(() => {
+    caricaOrdini();
+    const disconnetti = connettiWebSocket((ordine) => upsertOrdine(ordine));
+    return () => disconnetti();
+  }, [caricaOrdini, upsertOrdine]);
+
+  const avanzaStato = async (ordine) => {
+    const nuovo = PROSSIMO_STATO[ordine.stato];
+    if (!nuovo) return;
+    try {
+      const aggiornato = await aggiornaStatoOrdine(ordine.id, nuovo);
+      upsertOrdine(aggiornato);
+    } catch (e) {
+      console.error(e);
+      alert("Impossibile aggiornare lo stato dell'ordine");
+    }
   };
 
-  const generaOrdineDiProva = () =>
-  {
-    const numeroTavolo = Math.floor(Math.random() * 20) + 1;
-    const esempi = [
-      [{ nome: "Nigiri Salmone", quantita: 4 }, { nome: "Uramaki Ebi Tempura", quantita: 2 }],
-      [{ nome: "Sashimi Misto", quantita: 1 }, { nome: "Gyoza", quantita: 3 }],
-      [{ nome: "Ramen Miso", quantita: 1 }],
-    ];
-    const nuovo = {
-      id: Date.now() + Math.random(),
-      tavoloNumero: numeroTavolo,
-      stato: "IN_INVIATO",
-      dataOra: new Date().toISOString(),
-      dettagli: esempi[Math.floor(Math.random() * esempi.length)],
-    };
-    setOrdini((prev) => { const next = [...prev, nuovo]; persist(next); return next; });
-  };
+  const attivi = useMemo(
+    () => ordini.filter((o) => ordineInCodaGenerale(o)),
+    [ordini]
+  );
 
-  const attivi = ordini.filter((o) => o.stato !== "PAGATO");
   const nessunOrdine = !loading && attivi.length === 0;
 
   return (
@@ -102,12 +86,15 @@ export default function CodaOrdini()
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight m-0">Coda ordini</h1>
-            <p className="text-sm text-neutral-400 m-0">Vista cucina — aggiorna lo stato man mano che prepari</p>
+            <p className="text-sm text-neutral-400 m-0">Sincronizzata con la cucina in tempo reale</p>
           </div>
         </div>
-        {attivi.length > 0 && (
-          <span className="text-xs font-mono text-neutral-500">{attivi.length} ordini attivi</span>
-        )}
+        <div className="flex items-center gap-3 text-xs">
+          <span className="font-mono text-neutral-500">{attivi.length} ordini attivi</span>
+          <span className="flex items-center gap-1.5 text-green-400 font-mono">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Live
+          </span>
+        </div>
       </div>
 
       {loading && (
@@ -118,19 +105,12 @@ export default function CodaOrdini()
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20">
           <Sparkles className="w-8 h-8 text-neutral-700" />
           <p className="text-neutral-400 text-sm">Nessun ordine in coda al momento.</p>
-          <button
-            onClick={generaOrdineDiProva}
-            className="text-xs font-semibold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-4 py-2 rounded-full hover:bg-amber-400/20 transition-colors cursor-pointer"
-          >
-            Genera ordine di prova
-          </button>
         </div>
       )}
 
       {!nessunOrdine && !loading && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {COLONNE.map((col) =>
-          {
+          {COLONNE.map((col) => {
             const ordiniColonna = attivi
               .filter((o) => o.stato === col.stato)
               .sort((a, b) => new Date(a.dataOra) - new Date(b.dataOra));
@@ -152,24 +132,29 @@ export default function CodaOrdini()
                   {ordiniColonna.map((o) => (
                     <div key={o.id} className={`bg-neutral-900 border-l-4 ${col.accent} border border-neutral-800 rounded-2xl p-4`}>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-neutral-100">Tavolo {o.tavoloNumero}</span>
+                        <span className="text-sm font-bold text-neutral-100">
+                          Tavolo {o.numeroTavolo || o.tavoloId}
+                        </span>
                         <span className="flex items-center gap-1 text-[11px] text-neutral-500 font-mono">
                           <Clock className="w-3 h-3" /> {minutiFa(o.dataOra, now)}
                         </span>
                       </div>
 
                       <ul className="space-y-1 mb-3">
-                        {o.dettagli.map((d, i) => (
-                          <li key={i} className="text-xs text-neutral-300 flex justify-between">
-                            <span>{d.nome}</span>
-                            <span className="font-mono font-bold text-amber-400">x{d.quantita}</span>
-                          </li>
-                        ))}
+                        {(o.dettagli || [])
+                          .filter((d) => d.stato !== "CANCELLATO")
+                          .map((d) => (
+                            <li key={d.id} className={`text-xs flex justify-between ${d.stato === "INVIATO" ? "text-neutral-500" : "text-neutral-300"}`}>
+                              <span>{nomePiatto(d)}</span>
+                              <span className="font-mono font-bold text-amber-400">x{d.quantita}</span>
+                            </li>
+                          ))}
                       </ul>
 
                       {PROSSIMO_STATO[o.stato] && (
                         <button
-                          onClick={() => avanzaStato(o.id)}
+                          type="button"
+                          onClick={() => avanzaStato(o)}
                           className="w-full flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-amber-400 hover:text-neutral-950 text-neutral-200 text-xs font-bold py-2 rounded-xl transition-colors cursor-pointer"
                         >
                           {AZIONE_LABEL[o.stato]} <ArrowRight className="w-3.5 h-3.5" />

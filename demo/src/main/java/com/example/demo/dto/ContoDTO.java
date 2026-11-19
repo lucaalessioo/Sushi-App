@@ -20,7 +20,13 @@ public class ContoDTO {
     private Long tavoloId;
     private Integer numeroTavolo;
     private BigDecimal totale;
+    private Conto.TipoMenu tipoMenu;
+    private Integer numeroPersone;
+    private String tipoPasto;
+    private BigDecimal prezzoPerPersona;
+    private BigDecimal totaleFisso;
     private Conto.StatoConto stato;
+    private Conto.RichiestaPagamento richiestaPagamento;
     private LocalDateTime dataApertura;
     private LocalDateTime dataChiusura;
     private List<OrdineDTO> ordini;

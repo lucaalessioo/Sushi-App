@@ -21,6 +21,9 @@ export function connettiWebSocket(onOrdineRicevuto) {
         onOrdineRicevuto(ordine);
       }
     });
+    client.subscribe('/topic/conti', () => {
+      onOrdineRicevuto(null);
+    });
   };
 
   client.activate();

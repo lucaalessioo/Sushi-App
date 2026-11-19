@@ -56,7 +56,7 @@ const HomePage = ({ onSelection, numeroTavolo = 40, onLogout }) =>
 
   // Stato della modale di configurazione All You Can Eat
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [peopleCount, setPeopleCount] = useState(0);
+  const [peopleCount, setPeopleCount] = useState(1);
   const [mealType, setMealType] = useState('pranzo');
 
   const currentPricePerPerson = mealType === 'pranzo' ? PRICE_PRANZO : PRICE_CENA;
@@ -64,6 +64,7 @@ const HomePage = ({ onSelection, numeroTavolo = 40, onLogout }) =>
 
   const handleConfirmAllYouCanEat = () =>
   {
+    if (peopleCount < 1) return;
     onSelection('all-you-can-eat', {
       peopleCount,
       mealType,

@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -13,13 +12,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.PosizioneTavoloDTO;
+import com.example.demo.dto.StatoTavoloUpdateDTO;
 import com.example.demo.dto.TavoloDTO;
 import com.example.demo.interfacce.TavoloService;
-import com.example.demo.model.Tavolo.StatoTavolo;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/tavoli")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Configura i filtri CORS in base alle esigenze
 public class TavoloController {
 
     private final TavoloService tavoloService;
@@ -54,8 +51,11 @@ public class TavoloController {
     }
 
     @PatchMapping("/{id}/stato")
-    public ResponseEntity<TavoloDTO> updateStato(@PathVariable Long id, @RequestParam StatoTavolo stato) {
-        return ResponseEntity.ok(tavoloService.updateStato(id, stato));
+    public ResponseEntity<TavoloDTO> updateStato(
+            @PathVariable Long id,
+            @Valid @RequestBody StatoTavoloUpdateDTO dto
+    ) {
+        return ResponseEntity.ok(tavoloService.updateStato(id, dto.getStato()));
     }
 
     @DeleteMapping("/{id}")

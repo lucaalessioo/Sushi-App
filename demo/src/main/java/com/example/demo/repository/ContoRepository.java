@@ -3,6 +3,7 @@ package com.example.demo.repository;
 import com.example.demo.model.Conto;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,4 +17,13 @@ public interface ContoRepository extends JpaRepository<Conto, Long> {
     Optional<Conto> findByTavoloIdAndStatoNot(Long tavoloId, Conto.StatoConto stato);
 
     Optional<Conto> findByTavoloIdAndStato(Long tavoloId, Conto.StatoConto stato);
+
+    List<Conto> findByStatoNot(Conto.StatoConto stato);
+
+    @Query("""
+            SELECT c FROM Conto c
+            LEFT JOIN FETCH c.tavolo
+            WHERE c.stato <> com.example.demo.model.Conto.StatoConto.PAGATO
+            """)
+    List<Conto> findAttiviWithTavolo();
 }

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { LockKeyhole, ArrowRight, Infinity, AlertCircle } from "lucide-react";
 import { salvaSessione, clearSession } from "./admin/auth";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+
 const LoginTablet = ({ onLoginSuccess }) =>
 {
 
@@ -31,7 +33,7 @@ const LoginTablet = ({ onLoginSuccess }) =>
             setLoading(true);
 
             const response = await fetch(
-                "http://localhost:8080/api/v1/auth/login",
+                `${API_URL}/api/v1/auth/login`,
                 {
                     method: "POST",
                     headers: {

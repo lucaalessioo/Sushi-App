@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
     Search,
     ShoppingBag,
@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 
 import usePiatti from '../hooks/usePiatti';
-import { inviaOrdineBackend } from '../services/ordiniApi'; // 👈 Import del servizio API aggiornato
+import { inviaOrdineBackend } from '../services/ordiniApi';
+import { richiediPagamentoTablet } from '../services/contiApi';
 
 const CATEGORY_ICONS = {
     antipasti: Utensils,
@@ -34,7 +35,7 @@ const CATEGORY_ICONS = {
 import Card from './Card';
 import Carrello from './Carrello';
 
-const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) => {
+const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40, onOrderSent }) => {
     const { dishes, loading, error, reload } = usePiatti('alla-carta');
 
     const [activeCategory, setActiveCategory] = useState('nuovi');
@@ -44,6 +45,7 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) =>
     const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
     const [isCartModalOpen, setIsCartModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const invioInCorsoRef = useRef(false);
 
     const formatEuro = (value) => `€${Number(value).toFixed(2)}`;
 
@@ -102,9 +104,10 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) =>
     });
 
     const handleSendToKitchen = async () => {
-        if (totalItemsCount === 0 || submitting) return;
+        if (totalItemsCount === 0 || submitting || invioInCorsoRef.current) return;
 
         try {
+            invioInCorsoRef.current = true;
             setSubmitting(true);
 
             const carrelloItems = Object.entries(cart).map(([dishKey, qty]) => {
@@ -120,7 +123,10 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) =>
             }).filter(Boolean);
 
             // tavoloId = id utente tablet (PK), non il numero visualizzato
-            await inviaOrdineBackend(tavoloId ?? tableNumber, carrelloItems);
+            await inviaOrdineBackend(tavoloId ?? tableNumber, carrelloItems, {
+              orderType: 'alla-carta',
+            });
+            onOrderSent?.(carrelloItems);
 
             setSentOrders((prev) => [
                 ...prev,
@@ -132,12 +138,19 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) =>
             console.error("Errore nell'invio dell'ordine alla cucina:", err);
             alert(err.message || "Errore durante l'invio dell'ordine.");
         } finally {
+            invioInCorsoRef.current = false;
             setSubmitting(false);
         }
     };
 
-    const handlePaymentRequest = (type) => {
-        console.log(`Richiesta pagamento ricevuta per il tavolo: ${type}`);
+    const handlePaymentRequest = async (type) => {
+        if (!tavoloId || (type !== 'conto' && type !== 'cassa')) return;
+        try {
+            await richiediPagamentoTablet(tavoloId, type);
+        } catch (err) {
+            console.error(err);
+            alert(err.message || 'Impossibile inviare la richiesta alla cassa.');
+        }
     };
 
     return (
@@ -342,6 +355,7 @@ const MenuAlLaCarta = ({ onBack, onOpenReviews, tavoloId, tableNumber = 40 }) =>
                 onDecrement={(id) => updateQuantity(id, -1)}
                 onConfirmOrder={handlePaymentRequest}
                 onSendToKitchen={handleSendToKitchen}
+                submitting={submitting}
                 orderType="alla-carta"
                 orderHistory={sentOrders}
             />

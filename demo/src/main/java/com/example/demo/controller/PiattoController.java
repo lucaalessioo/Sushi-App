@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/piatti")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class PiattoController {
 
     private final PiattoService piattoService;

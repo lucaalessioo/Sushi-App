@@ -29,6 +29,7 @@ const Carrello = ({
     onDecrement,
     onConfirmOrder,
     onSendToKitchen,
+    submitting = false,
     orderType = 'alla-carta',
     fixedPrice = 0,
     peopleCount,
@@ -84,7 +85,7 @@ const Carrello = ({
 
     const handleSendOrder = () =>
     {
-        if (cartEntries.length === 0) return;
+        if (cartEntries.length === 0 || submitting) return;
         if (onSendToKitchen) onSendToKitchen();
     };
 
@@ -347,10 +348,10 @@ const Carrello = ({
                             </button>
                             <button
                                 onClick={handleSendOrder}
-                                disabled={cartEntries.length === 0}
+                                disabled={cartEntries.length === 0 || submitting}
                                 className="w-full bg-amber-400 hover:bg-amber-300 disabled:bg-neutral-800 disabled:text-neutral-500 disabled:cursor-not-allowed text-neutral-950 font-bold py-3 rounded-2xl text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20 disabled:shadow-none"
                             >
-                                <ShoppingCart className="w-4 h-4" /> Invia Ordine
+                                <ShoppingCart className="w-4 h-4" /> {submitting ? 'Invio...' : 'Invia Ordine'}
                             </button>
                         </div>
                     </div>

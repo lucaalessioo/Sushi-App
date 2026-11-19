@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Search,
   ShoppingBag,
@@ -11,12 +11,13 @@ import {
 
 import { CATEGORIES } from '../data/mockMenu';
 import usePiatti from '../hooks/usePiatti';
-import { inviaOrdineBackend } from '../services/ordiniApi'; // 👈 Import del servizio API aggiornato
+import { inviaOrdineBackend } from '../services/ordiniApi';
+import { richiediPagamentoTablet } from '../services/contiApi';
 
 import Card from './Card';
 import Carrello from './Carrello';
 
-const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null, tavoloId, numeroTavolo }) => {
+const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig = null, tavoloId, numeroTavolo, onOrderSent }) => {
   const { dishes, loading, error, reload } = usePiatti(orderType);
 
   const [activeCategory, setActiveCategory] = useState('nuovi');
@@ -26,6 +27,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
   const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const invioInCorsoRef = useRef(false);
 
   const isAllYouCanEat = orderType === 'all-you-can-eat';
 
@@ -54,9 +56,10 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
 
   // Invio ordine in cucina tramite API backend (Spring Boot + WebSocket/Cookie)
   const handleSendToKitchen = async () => {
-    if (totalItemsCount === 0 || submitting) return;
+    if (totalItemsCount === 0 || submitting || invioInCorsoRef.current) return;
 
     try {
+      invioInCorsoRef.current = true;
       setSubmitting(true);
 
       // Mima gli elementi del carrello mappandoli correttamente con il dbId numerico
@@ -73,7 +76,11 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
       }).filter(Boolean);
 
       // Chiamata al backend per registrare l'ordine e propagarlo via WebSocket alla cucina
-      await inviaOrdineBackend(tavoloId, carrelloItems);
+      await inviaOrdineBackend(tavoloId, carrelloItems, {
+        orderType: 'all-you-can-eat',
+        ...orderConfig,
+      });
+      onOrderSent?.(carrelloItems);
 
       setSentOrders((prev) => [
         ...prev,
@@ -85,12 +92,19 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
       console.error("Errore durante l'invio dell'ordine in cucina:", err);
       alert(err.message || "Errore di connessione durante l'invio dell'ordine.");
     } finally {
+      invioInCorsoRef.current = false;
       setSubmitting(false);
     }
   };
 
-  const handlePaymentRequest = (type) => {
-    console.log(`Richiesta pagamento ricevuta per il tavolo: ${type}`);
+  const handlePaymentRequest = async (type) => {
+    if (!tavoloId || (type !== 'conto' && type !== 'cassa')) return;
+    try {
+      await richiediPagamentoTablet(tavoloId, type);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Impossibile inviare la richiesta alla cassa.');
+    }
   };
 
   const headerBadgeLabel = isAllYouCanEat ? 'ALL YOU CAN EAT' : 'ALLA CARTA';
@@ -298,6 +312,7 @@ const MenuAll = ({ onBack, onOpenReviews, orderType = 'alla-carta', orderConfig 
         onDecrement={(id) => updateQuantity(id, -1)}
         onConfirmOrder={handlePaymentRequest}
         onSendToKitchen={handleSendToKitchen}
+        submitting={submitting}
         orderType={orderType}
         fixedPrice={orderConfig?.tableTotal}
         peopleCount={orderConfig?.peopleCount}
